@@ -541,7 +541,7 @@
         display: block;
       }
       .infoLine:nth-child(2):after {
-        content: "/ "
+        content: " /"
       }
 
       small.credits span:first-child:after {
@@ -577,4 +577,5 @@
       }
 
     }
+
 
