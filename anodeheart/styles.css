@@ -66,11 +66,16 @@
       font-size: 12px;
       line-height: 1.35;
     }
-
     small.credits {
       display: block;
       margin-top: 8px;
       text-align: right;
+    }
+    small.credits span {
+      display: inline-block;
+    }
+    small.credits span:first-child:after {
+      content:"; ";
     }
 
     .hidden {
@@ -497,8 +502,8 @@
     @media (max-width: 980px) {
       :root {
         --iconSize: 40px;
-      }
-
+        --cellSize: 56px;
+      }		
       body {
         overflow-x: hidden;
       }
@@ -532,19 +537,16 @@
       .infoLine {
         display: inline-block;
       }
-
-      .infoLine:after {
-        content: " /"
+      .infoLine:first-child {
+        display: block;
+      }
+      .infoLine:nth-child(2):after {
+        content: ";"
       }
 
-      .infoLine:last-child:after,
-      .infoLine:nth-child(3):after {
-        display: none;
-      }
-
-      :root {
-        --cellSize: 56px;
-      }
+      small.credits span:first-child:after {
+        content:"";
+	  }
 
       .circle {
         width: 22px;
@@ -569,4 +571,5 @@
         height: 16px;
         border-width: 3px;
       }
+
     }
