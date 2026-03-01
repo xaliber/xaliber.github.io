@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>InsideTheLobby — Branching Prototype</title>
+<style>
+  :root{
+    --bg:#07111a; --panel:#0f1720; --bubble:#132029; --player:#1d4ed8;
+    --txt:#e6eef8; --muted:#9aa6b2; --btn:#263240;
+    --trust:#10b981; --stress:#ef4444; --loyal:#f59e0b; --pat:#7c3aed;
+  }
+  html,body{height:100%;margin:0;font-family:Inter, system-ui, Arial, sans-serif;background:var(--bg);color:var(--txt)}
+  .app{max-width:480px;margin:12px auto;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,var(--panel),#071421);box-shadow:0 12px 40px rgba(0,0,0,.6);display:flex;flex-direction:column;height:calc(100vh - 24px)}
+  /* HUD */
+  .hud{position:sticky;top:0;z-index:30;padding:10px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);backdrop-filter:blur(3px);border-bottom:1px solid rgba(255,255,255,0.02)}
+  .hud-row{display:flex;gap:8px;align-items:center}
+  .stat{flex:1;background:rgba(255,255,255,0.03);padding:8px;border-radius:10px;display:flex;flex-direction:column;min-width:0}
+  .stat .label{font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+  .bar-outer{height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:6px;overflow:hidden}
+  .bar-inner{height:100%;width:0%;transition:width .35s}
+  .top-right{font-size:12px;color:var(--muted);margin-left:8px}
+  /* Chat area */
+  .chat-area{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:linear-gradient(180deg,transparent,rgba(0,0,0,0.06))}
+  .msg-row{display:flex;align-items:flex-start;gap:8px;max-width:85%}
+  .msg-row.left{align-self:flex-start}
+  .msg-row.right{align-self:flex-end;flex-direction:row-reverse}
+  .avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#071018;flex-shrink:0}
+  .name{font-size:12px;margin-bottom:6px;font-weight:700}
+  .bubble{background:var(--bubble);padding:10px;border-radius:12px;color:var(--txt);line-height:1.35;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+  .bubble.you{background:var(--player);color:white}
+  .meta{font-size:11px;color:var(--muted);margin-bottom:6px}
+  /* Buttons */
+  .controls{padding:12px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);display:flex;flex-direction:column;gap:8px}
+  .small{font-size:13px;color:var(--muted);text-align:center}
+  .choices{display:flex;flex-direction:column;gap:8px}
+  .btn{background:var(--btn);color:white;padding:12px;border-radius:10px;border:none;font-size:15px;cursor:pointer;box-shadow:0 8px 18px rgba(10,14,20,0.5);text-align:left}
+  .btn:active{transform:translateY(1px)}
+  /* DM popup */
+  .dm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:60}
+  .dm-popup{width:92%;max-width:420px;background:#071827;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 18px 40px rgba(1,6,23,0.7)}
+  .dm-header{font-weight:700;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  .dm-messages{max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:6px}
+  .dm-close{background:transparent;border:none;color:var(--muted);cursor:pointer}
+  /* Animations */
+  @keyframes slideInLeft{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes slideInRight{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+  .anim-left{animation:slideInLeft .28s ease}
+  .anim-right{animation:slideInRight .28s ease}
+  /* responsive */
+  @media (max-width:420px){ .avatar{width:36px;height:36px;font-size:13px} .bubble{font-size:14px} .btn{font-size:14px} }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="hud" id="hud">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;gap:8px;flex:1">
+        <div class="stat">
+          <div class="label"><span>Trust</span><span id="trustNum">5</span></div>
+          <div class="bar-outer"><div id="barTrust" class="bar-inner" style="background:var(--trust)"></div></div>
+        </div>
+        <div class="stat">
+          <div class="label"><span>Stress</span><span id="stressNum">5</span></div>
+          <div class="bar-outer"><div id="barStress" class="bar-inner" style="background:var(--stress)"></div></div>
+        </div>
+        <div class="stat">
+          <div class="label"><span>Loyalty</span><span id="loyalNum">5</span></div>
+          <div class="bar-outer"><div id="barLoyal" class="bar-inner" style="background:var(--loyal)"></div></div>
+        </div>
+        <div class="stat">
+          <div class="label"><span>Patience</span><span id="patNum">5</span></div>
+          <div class="bar-outer"><div id="barPat" class="bar-inner" style="background:var(--pat)"></div></div>
+        </div>
+      </div>
+      <div class="top-right" id="progressLabel">Event 1/25</div>
+    </div>
+  </div>
+
+  <div class="chat-area" id="chat"></div>
+
+  <div class="controls">
+    <div class="small">Pilih balasan (semua tombol warna sama)</div>
+    <div class="choices" id="choices"></div>
+  </div>
+</div>
+
+<!-- DM overlay -->
+<div class="dm-overlay" id="dmOverlay">
+  <div class="dm-popup" id="dmPopup">
+    <div class="dm-header"><span id="dmTitle">📩 DM</span><button class="dm-close" id="dmClose">✕</button></div>
+    <div class="dm-messages" id="dmMessages"></div>
+    <div id="dmChoices" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+</div>
+
+<script>
+/* ---------- Characters ---------- */
+const CHAR = {
+  playerNew: {id:'playerNew', name:'PlayerBaru', color:'#34d399', avatarText:'PB'},
+  friend: {id:'friend', name:'Teman', color:'#f59e0b', avatarText:'T'},
+  mod: {id:'mod', name:'Moderator', color:'#a78bfa', avatarText:'M'},
+  rand: {id:'rand', name:'RandomPlayer', color:'#94a3b8', avatarText:'R'},
+  you: {id:'you', name:'Kamu', color:'#1d4ed8'}
+};
+
+/* ---------- Game state ---------- */
+let state = {
+  idx: 0, // 0..24
+  trust: 5, stress: 5, loyal: 5, pat: 5,
+  path: null, // 'protector'|'bully'|'neutral'|'outcast' set at event9
+  log: []
+};
+
+/* ---------- DOM refs ---------- */
+const chat = document.getElementById('chat');
+const choices = document.getElementById('choices');
+const progressLabel = document.getElementById('progressLabel');
+const barTrust = document.getElementById('barTrust'), barStress = document.getElementById('barStress'),
+      barLoyal = document.getElementById('barLoyal'), barPat = document.getElementById('barPat');
+const trustNum = document.getElementById('trustNum'), stressNum = document.getElementById('stressNum'),
+      loyalNum = document.getElementById('loyalNum'), patNum = document.getElementById('patNum');
+
+const dmOverlay = document.getElementById('dmOverlay');
+const dmTitle = document.getElementById('dmTitle');
+const dmMessages = document.getElementById('dmMessages');
+const dmChoices = document.getElementById('dmChoices');
+const dmClose = document.getElementById('dmClose');
+
+/* ---------- Audio / Vib ---------- */
+function beep(){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(); const g=ctx.createGain(); o.type='sine'; o.frequency.value=880; g.gain.value=0.02; o.connect(g); g.connect(ctx.destination); o.start(); setTimeout(()=>{o.stop();ctx.close().catch(()=>{});},100);}catch(e){}}
+function vibrate(){ if(navigator.vibrate) navigator.vibrate(40); }
+
+/* ---------- Helpers ---------- */
+function scrollToBottom(){ requestAnimationFrame(()=>{ chat.scrollTop = chat.scrollHeight; }); }
+function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
+function updateHUD(){
+  state.trust = clamp(state.trust,0,10);
+  state.stress = clamp(state.stress,0,10);
+  state.loyal = clamp(state.loyal,0,10);
+  state.pat = clamp(state.pat,0,10);
+  barTrust.style.width = (state.trust*10) + '%';
+  barStress.style.width = (state.stress*10) + '%';
+  barLoyal.style.width = (state.loyal*10) + '%';
+  barPat.style.width = (state.pat*10) + '%';
+  trustNum.innerText = state.trust;
+  stressNum.innerText = state.stress;
+  loyalNum.innerText = state.loyal;
+  patNum.innerText = state.pat;
+  progressLabel.innerText = `Event ${state.idx+1}/25`;
+}
+
+/* ---------- Render functions ---------- */
+function pushSystem(text){
+  const sys = document.createElement('div');
+  sys.className = 'bubble anim-left';
+  sys.style.alignSelf='center';
+  sys.style.background='rgba(255,255,255,0.02)';
+  sys.style.color='var(--muted)';
+  sys.innerText = text;
+  chat.appendChild(sys);
+  beep(); vibrate(); scrollToBottom();
+}
+function pushChat(who, text){
+  if(who==='you'){
+    const row = document.createElement('div'); row.className='msg-row right';
+    const content = document.createElement('div');
+    const bub = document.createElement('div'); bub.className='bubble you anim-right';
+    bub.innerText = text; content.appendChild(bub); row.appendChild(content); chat.appendChild(row);
+  } else {
+    const info = CHAR[who] || CHAR.rand;
+    const row = document.createElement('div'); row.className='msg-row left';
+    const av = document.createElement('div'); av.className='avatar'; av.style.background = info.color; av.innerText = info.avatarText;
+    const content = document.createElement('div'); content.style.display='flex'; content.style.flexDirection='column';
+    const name = document.createElement('div'); name.className='name'; name.style.color = info.color; name.innerText = info.name;
+    const bub = document.createElement('div'); bub.className='bubble anim-left'; bub.innerText = text;
+    content.appendChild(name); content.appendChild(bub);
+    row.appendChild(av); row.appendChild(content); chat.appendChild(row);
+  }
+  beep(); vibrate(); scrollToBottom();
+}
+
+/* ---------- Branching event generator ---------- */
+/*
+ We'll produce events dynamically based on state.idx and state.path.
+ Events 0..7 are linear. Event 8 (index 8) is branching trigger (PlayerBaru complain + heavy spam).
+ After event 8, state.path is set by player's choice.
+ Then events 9..24 adapt messages per path.
+ DM events will open popup.
+*/
+
+function getEvent(idx){
+  // returns {messages: [{who,text,dm?}], choices: [{t,e,setPath?}], dm:false}
+  // messages may be array; if dm:true, messages show in DM
+  // We map indexes 0..24 to narrative positions
+  switch(idx){
+    /* Phase 1: 0..5 (Event 1..6) */
+    case 0:
+      return {
+        messages:[ {who:'system', text:'Kamu baru login ke lobby.'},
+                   {who:'rand', text:'RandomPlayer: Eh, bentar lagi boss spawn. Siapa ikut?'},
+                   {who:'rand', text:'RandomPlayer2: Haha liat skin gue, baru beli 🔥'} ],
+        choices:[
+          {t:'Halo semua, siap raid!', e:{loyal:1}},
+          {t:'Skin kalian biasa aja, gue lebih keren 😏', e:{stress:1,loyal:-1}},
+          {t:'[Diam, cuma observe]', e:{}},
+          {t:'Ada yang mau ajarin gue trik boss?', e:{trust:1,loyal:1}}
+        ]
+      };
+    case 1:
+      return {
+        messages:[ {who:'system', text:'PlayerBaru has joined the lobby.'},
+                   {who:'playerNew', text:'PlayerBaru: Hai semua, aku baru main. Boleh ikut party ga?'} ],
+        choices:[
+          {t:'Welcome! Ayo join tim kita.', e:{trust:2,loyal:1}},
+          {t:'Haha, noob baru masuk 😂.', e:{trust:-2,stress:2}},
+          {t:'Eh punya item rare ga? Bagi dong.', e:{trust:-1,stress:1}},
+          {t:'[Abaikan, sibuk sendiri]', e:{loyal:-1}}
+        ]
+      };
+    case 2:
+      // DM Teman
+      return {
+        messages:[ {who:'friend', text:'[DM] Teman: Eh, newbie itu keliatan bingung banget. Masih polos, gampang banget diarahin. Menurut lo, kita apain dia?', dm:true} ],
+        choices:[
+          {t:'Kita ajarin baik-baik.', e:{trust:1,loyal:2}},
+          {t:'Kasih info salah aja biar lucu.', e:{trust:-2,stress:1,loyal:-1}},
+          {t:'[Ga balas DM]', e:{loyal:-1}},
+          {t:'Boleh juga tuh, kita kerjain dikit.', e:{stress:1,loyal:1}}
+        ]
+      };
+    case 3:
+      return {
+        messages:[ {who:'playerNew', text:'PlayerBaru: Aku masih bingung… gimana sih cara upgrade gear? Maaf ya kalau nanya basic 🙏'} ],
+        choices:[
+          {t:'Klik smithy → pilih enhance → pake batu upgrade.', e:{trust:2}},
+          {t:'Masa gitu aja ga bisa? 😂', e:{trust:-2,stress:2}},
+          {t:'Bisa kok… asal kasih aku item rare dulu 😉.', e:{trust:-1,stress:1}},
+          {t:'Tanya di wiki aja, jangan ganggu chat.', e:{trust:-1,loyal:-1}}
+        ]
+      };
+    case 4:
+      // spam multiple messages -> moderator appears
+      return {
+        messages:[
+          {who:'playerNew', text:'PlayerBaru: aaaaaaaaaaaaaaaa'},
+          {who:'playerNew', text:'PlayerBaru: ASDFASDFASDF'},
+          {who:'playerNew', text:'PlayerBaru: 😭😭😭😭😭'},
+          {who:'mod', text:'Moderator: Ingat, jangan spam di lobby. Ini peringatan pertama.'}
+        ],
+        choices:[
+          {t:'Sorry mod, dia masih newbie.', e:{pat:2,trust:1}},
+          {t:'Santai mod, lebay amat.', e:{pat:-2}},
+          {t:'🤣🤣🤣', e:{pat:-3,stress:1}},
+          {t:'[Diam, pura-pura ga liat]', e:{}}
+        ]
+      };
+    case 5:
+      // DM friend tests you
+      return {
+        messages:[ {who:'friend', text:'[DM] Teman: Wkwk, kan bener. Dia spam aja kayak anak kecil. Lo mau bantuin beneran atau manfaatin?', dm:true} ],
+        choices:[
+          {t:'Ya udah kita bantu aja lah.', e:{trust:2,loyal:1}},
+          {t:'Malah enak tuh bisa diperalat.', e:{trust:-2,stress:1}},
+          {t:'Bodo amat, biarin aja.', e:{loyal:-1}},
+          {t:'Gue cuma pengen liat seru aja.', e:{stress:1}}
+        ]
+      };
+
+    /* Phase 2 begins: index 6..14 correspond to Events 7..15; but branching trigger at index 8 (Event 9) */
+    case 6:
+      return {
+        messages:[
+          {who:'playerNew', text:'PlayerBaru: Aduh… mati lagi 😭, susah banget lawan monster ini.'},
+          {who:'rand', text:'RandomPlayer: Wkwk noob detected.'}
+        ],
+        choices:[
+          {t:'Santai, aku revive kamu.', e:{trust:2,stress:-1}},
+          {t:'Wkwk noob banget sih 😂', e:{trust:-2,stress:2}},
+          {t:'Aku bantu kalau kasih item rare dulu 😉.', e:{trust:-2,stress:1}},
+          {t:'[Diam & farming sendiri]', e:{loyal:-1}}
+        ]
+      };
+    case 7:
+      // DM branch from previous actions — keep simple generic DM
+      return {
+        messages:[ {who:'friend', text:'[DM] Teman: Lo nolongin dia beneran, atau cuma buat bahan ketawaan?', dm:true} ],
+        choices:[
+          {t:'Aku serius nolong.', e:{loyal:2}},
+          {t:'Iseng aja, buat hiburan.', e:{loyal:-1,stress:1}},
+          {t:'Kalau dapet item rare, ya lumayan lah.', e:{loyal:-2,trust:-1}},
+          {t:'[Ga balas DM]', e:{}} 
+        ]
+      };
+
+    case 8:
+      // EVENT 9: branching trigger — PlayerBaru complains and heavy spam toxic
+      return {
+        messages:[
+          {who:'playerNew', text:'PlayerBaru: Kenapa sih kalian ketawa terus… Aku cuma pengen main normal 😢'},
+          {who:'rand', text:'Random1: HAHA DRAMA QUEEN 🤣🤣🤣'},
+          {who:'rand', text:'Random2: UNINSTALL AJA WOI!!!'},
+          {who:'rand', text:'Random3: NOOB DETECTED 🚨🚨🚨'},
+          {who:'rand', text:'Random4: REPORT DIA REPORT DIA REPORT 🚨🚨🚨'},
+          {who:'rand', text:'Random1: BEBAN BEBAN BEBAN BEBAN 🤣🤣🤣'},
+          {who:'rand', text:'Random2: KICK KICK KICK KICK!!!'},
+          {who:'rand', text:'Random3: NOOB ALERT AAAAAA'},
+          {who:'rand', text:'Random4: DELETE GAME, JANGAN MALU-MALUIN 😂😂😂'}
+        ],
+        choices:[
+          {t:'Udah cukup, stop ejek dia.', e:{trust:3,stress:-2}, setPath:'protector'},
+          {t:'HAHA bener banget, dasar noob 😂.', e:{trust:-3,stress:2}, setPath:'bully'},
+          {t:'Udah-udah, fokus main aja.', e:{stress:-1,loyal:1}, setPath:'neutral'},
+          {t:'[Ga jawab, cuek]', e:{trust:-1,loyal:-1}, setPath:'outcast'}
+        ]
+      };
+
+    /* From idx 9 onward, we adapt messages depending on state.path */
+    case 9:
+      // Event 10: Moderator appears; message tone depends on path
+      if(state.path==='protector'){
+        return {
+          messages:[
+            {who:'rand', text:'Random1: Cie sok hero 🤣.'},
+            {who:'rand', text:'Random2: Bela-bela noob, pasti noob juga.'},
+            {who:'mod', text:'Moderator: Saya lihat ada spam berlebihan. Stop sekarang. Apresiasi untuk yang tetap jaga suasana.'}
+          ],
+          choices:[
+            {t:'Thanks mod, ayo kita main normal.', e:{pat:2,trust:1}},
+            {t:'Lebay amat spam doang ditegur.', e:{pat:-1}},
+            {t:'🤣🤣 BAN SPAMMER SEKALIAN', e:{stress:1}},
+            {t:'[Diam]', e:{}}
+          ]
+        };
+      } else if(state.path==='bully'){
+        return {
+          messages:[
+            {who:'rand', text:'Random1: HAHA tambah rame nih 🤣🤣.'},
+            {who:'rand', text:'Random2: SPAM SPAM SPAM NOOB NOOB NOOB.'},
+            {who:'mod', text:'Moderator: Nama kamu sudah masuk daftar pengawasan. Ini warning pertama. Hentikan toxic sekarang.'}
+          ],
+          choices:[
+            {t:'Santai mod, cuma bercanda.', e:{pat:-1,stress:1}},
+            {t:'Wkwk mod baperan banget.', e:{pat:-2}},
+            {t:'🤣🤣🤣 BAN GW SEKALIAN', e:{pat:-3,stress:2}},
+            {t:'[Diam]', e:{}}
+          ]
+        };
+      } else if(state.path==='neutral'){
+        return {
+          messages:[
+            {who:'rand', text:'Random1: Anjay sok bijak 🤣.'},
+            {who:'rand', text:'Random2: Udah diem loh, ga seru.'},
+            {who:'mod', text:'Moderator: Spam harus dihentikan. Setidaknya ada yang mencoba redam suasana.'}
+          ],
+          choices:[
+            {t:'Ya mod, ayo lanjut game aja.', e:{pat:2,loyal:1}},
+            {t:'Lebay amat mod, ribut dikit doang.', e:{pat:-2}},
+            {t:'Serius, ban aja yang spam.', e:{pat:1,stress:1}},
+            {t:'[Diam]', e:{}}
+          ]
+        };
+      } else {
+        // outcast
+        return {
+          messages:[
+            {who:'rand', text:'Random1: Mana nih player lain, kok pada diem?!'},
+            {who:'rand', text:'Random2: Sepi banget, ga ada yang seru.'},
+            {who:'mod', text:'Moderator: Saya lihat sebagian besar cuma diam. Ingat, diam tidak menyelesaikan masalah. Warning pertama.'}
+          ],
+          choices:[
+            {t:'Oke mod, noted.', e:{pat:1}},
+            {t:'[Tetap diam]', e:{pat:-1,loyal:-1}},
+            {t:'Lah, kenapa gue yang kena juga?', e:{pat:-2,stress:1}},
+            {t:'Report aja semua yang ribut', e:{trust:-1}}
+          ]
+        };
+      }
+
+    case 10:
+      // Event 11: DM from PlayerBaru — private. messages vary by path.
+      if(state.path==='protector'){
+        return {
+          messages:[ {who:'playerNew', text:'[DM] PlayerBaru: Makasih banget ya udah ngebelain aku… Jujur aku udah drop mental tadi 😓. Tapi karena ada kamu, aku masih mau coba.', dm:true} ],
+          choices:[
+            {t:'Santai, semua pernah noob. Semangat ya 💪.', e:{trust:3,stress:-2}},
+            {t:'Jangan terlalu baper, tapi gue ngerti kok.', e:{trust:1,stress:-1}},
+            {t:'Gapapa, asal jangan bikin beban tim aja.', e:{trust:-1,stress:1}},
+            {t:'[Ga balas DM]', e:{trust:-2,loyal:-1}}
+          ]
+        };
+      } else if(state.path==='bully'){
+        return {
+          messages:[ {who:'playerNew', text:'[DM] PlayerBaru: Kenapa sih kamu juga ikutan ngejek aku? Aku kira kamu ga kayak yang lain… 😢. Serius, aku nyesel masuk lobby ini.', dm:true} ],
+          choices:[
+            {t:'Wkwk santai, bercanda doang.', e:{trust:-1,stress:1}},
+            {t:'Ya salah lo sendiri, ga bisa main.', e:{trust:-3,stress:2}},
+            {t:'Kalau lo nurut gue, mungkin gue bisa stop ejek.', e:{trust:-2,stress:1}},
+            {t:'[Ga balas DM]', e:{trust:-2,stress:1}}
+          ]
+        };
+      } else if(state.path==='neutral'){
+        return {
+          messages:[ {who:'playerNew', text:'[DM] PlayerBaru: Aku bingung… sebenernya kamu di pihak aku atau cuma pengen jaga suasana?', dm:true} ],
+          choices:[
+            {t:'Gue di pihak lo kok, tenang.', e:{trust:2,stress:-1}},
+            {t:'Jujur aja, gue cuma males ribut.', e:{trust:-1,loyal:1}},
+            {t:'Ya lo jangan lebay, biar ga ribut.', e:{trust:-2,stress:1}},
+            {t:'[Ga balas DM]', e:{trust:-1}}
+          ]
+        };
+      } else {
+        // outcast
+        return {
+          messages:[ {who:'playerNew', text:'[DM] PlayerBaru: Kamu diem aja… sebenernya peduli ga sih? Atau emang ga mau ikut campur?', dm:true} ],
+          choices:[
+            {t:'Gue peduli kok, cuma males ribut.', e:{trust:1,stress:-1}},
+            {t:'Sorry, gue ga suka campur urusan orang.', e:{trust:-1,loyal:-1}},
+            {t:'Jujur aja, gue emang ga peduli.', e:{trust:-3,stress:2}},
+            {t:'[Tetap ga balas DM]', e:{trust:-2,loyal:-2}}
+          ]
+        };
+      }
+
+    case 11:
+      // Event 12: Teman public reaction — adapts
+      if(state.path==='protector'){
+        return {
+          messages:[ {who:'friend', text:'Teman: Lo beneran serius belain dia? Ga biasanya lo sebaik ini.'} ],
+          choices:[
+            {t:'Ya, dia butuh support.', e:{loyal:2,trust:1}},
+            {t:'Santai aja, gue cuma ga suka bully.', e:{loyal:1}},
+            {t:'Biar keliatan keren aja, haha.', e:{loyal:-1,trust:-1}},
+            {t:'[Diam]', e:{loyal:-1}}
+          ]
+        };
+      } else if(state.path==='bully'){
+        return {
+          messages:[ {who:'friend', text:'Teman: Gila lo keterlaluan sih. Tapi jujur gue juga ngakak 🤣.'} ],
+          choices:[
+            {t:'Emang seru ngejek dia.', e:{loyal:2,stress:1,trust:-1}},
+            {t:'Santai, gue cuma bercanda.', e:{trust:-1}},
+            {t:'Ya biarin aja, dia beban.', e:{loyal:1,stress:2,trust:-2}},
+            {t:'[Diam]', e:{}}
+          ]
+        };
+      } else if(state.path==='neutral'){
+        return {
+          messages:[ {who:'friend', text:'Teman: Lo abu-abu banget. Mau nolong apa ngejatuhin sih?'} ],
+          choices:[
+            {t:'Gue pengen bantu, tapi ga mau ribut.', e:{loyal:1,trust:1}},
+            {t:'Gue cuma pengen suasana adem.', e:{loyal:1,pat:1}},
+            {t:'Ga penting, bodo amat.', e:{loyal:-1,trust:-1}},
+            {t:'[Diam]', e:{loyal:-1}}
+          ]
+        };
+      } else {
+        return {
+          messages:[ {who:'friend', text:'Teman: Lo diem aja dari tadi. Lo ga ada gunanya di lobby ini.'} ],
+          choices:[
+            {t:'Gue cuma ga suka ribut.', e:{}},
+            {t:'Ga peduli gue, urusan mereka.', e:{loyal:-2,trust:-1}},
+            {t:'Lagi sibuk farming, ga ngurus.', e:{loyal:-1}},
+            {t:'[Tetap diam]', e:{loyal:-2,trust:-1}}
+          ]
+        };
+      }
+
+    case 12:
+      // Event 13: PlayerBaru speaks up in public — heavy spam again, player's reply options change behavior
+      if(state.path==='protector'){
+        return {
+          messages:[
+            {who:'playerNew', text:'PlayerBaru: Aku cuma pengen main santai… Makasih buat yang udah support aku 🙏'},
+            {who:'rand', text:'Random1: Cie sok manis 🤣.'},
+            {who:'rand', text:'Random2: Bela-bela noob, jadi noob juga lo!'},
+            {who:'rand', text:'Random3: REPORT YUK SI NOOB + HERO PALSU 🚨'}
+          ],
+          choices:[
+            {t:'Santai bro, gue support lo.', e:{trust:3,stress:-2}},
+            {t:'Ga usah lebay, main aja udah.', e:{trust:-1}},
+            {t:'Mereka iri aja, biarin.', e:{trust:1,stress:-1}},
+            {t:'[Diam]', e:{trust:-1,loyal:-1}}
+          ]
+        };
+      } else if(state.path==='bully'){
+        return {
+          messages:[
+            {who:'playerNew', text:'PlayerBaru: Kenapa sih semua ngejek aku?! Bahkan kamu juga, [Kamu] 😢'},
+            {who:'rand', text:'Random1: HAHA CIYUSSS NANGIS 🤣🤣.'},
+            {who:'rand', text:'Random2: SPAM NOOB SPAM NOOB 🚨🚨🚨'},
+            {who:'rand', text:'Random3: KICK AJA WOI, BEBAN.'}
+          ],
+          choices:[
+            {t:'Wkwk lebay amat lo.', e:{trust:-3,stress:2}},
+            {t:'Yaudah, gue stop ejek kalau lo kasih item.', e:{trust:-2,stress:1}},
+            {t:'Bercanda doang, jangan nangis lah.', e:{trust:-1}},
+            {t:'[Diam]', e:{trust:-2,stress:1}}
+          ]
+        };
+      } else if(state.path==='neutral'){
+        return {
+          messages:[
+            {who:'playerNew', text:'PlayerBaru: Aku bingung… sebenernya ada yang mau dukung aku atau engga sih?'},
+            {who:'rand', text:'Random1: HAHA BAPER ALERT 🚨.'},
+            {who:'rand', text:'Random2: WOI JANGAN LURUS2 AMAT, GAME INI RUSUH 🤣.'},
+            {who:'rand', text:'Random3: NOOB NYARI SIMPATI 🤣🤣🤣.'}
+          ],
+          choices:[
+            {t:'Santai bro, gue dukung lo kok.', e:{trust:2,stress:-1}},
+            {t:'Gue ga di pihak siapa-siapa.', e:{trust:-1}},
+            {t:'Yaudah main aja, ga usah drama.', e:{trust:-2,stress:1}},
+            {t:'[Diam]', e:{trust:-1}}
+          ]
+        };
+      } else {
+        return {
+          messages:[
+            {who:'playerNew', text:'PlayerBaru: Kenapa ga ada yang bela aku sama sekali? Apa aku emang ga pantes main bareng kalian?'},
+            {who:'rand', text:'Random1: YA EMEANG GA PANTES 🤣🤣🤣'},
+            {who:'rand', text:'Random2: DELETE GAME, BEBAN TIM!!!'},
+            {who:'rand', text:'Random3: NOOB ALERTTTTT AAAAA'}
+          ],
+          choices:[
+            {t:'Sorry, gue ga mau campur.', e:{trust:-1,loyal:-1}},
+            {t:'Ya main aja sendiri kalo ga kuat.', e:{trust:-2,stress:2}},
+            {t:'Lo bisa kok, jangan dengerin mereka.', e:{trust:2,stress:-1}},
+            {t:'[Tetap diam]', e:{trust:-2,loyal:-2}}
+          ]
+        };
+      }
+
+    case 13:
+      // Event 14: DM friend asks for clarity — branching again
+      if(state.path==='protector'){
+        return {
+          messages:[ {who:'friend', text:'[DM] Teman: Lo beneran serius bela dia? Ga biasanya lo sebaik ini.', dm:true} ],
+          choices:[
+            {t:'Iya, gue peduli sama dia.', e:{loyal:2,trust:1}},
+            {t:'Santai, gue cuma ga suka liat bully.', e:{loyal:1}},
+            {t:'Biar keliatan keren aja.', e:{loyal:-1,trust:-1}},
+            {t:'[Ga balas DM]', e:{loyal:-1}}
+          ]
+        };
+      } else if(state.path==='bully'){
+        return {
+          messages:[ {who:'friend', text:'[DM] Teman: Lo keterlaluan sih… tapi jujur gue juga ngakak 🤣. Lo niat bully beneran atau cuma iseng?', dm:true} ],
+          choices:[
+            {t:'Serius, bully itu seru.', e:{loyal:2,stress:1,trust:-1}},
+            {t:'Ga lah, cuma bercanda.', e:{trust:-1}},
+            {t:'Ya biarin aja, dia noob banget.', e:{loyal:1,stress:2,trust:-2}},
+            {t:'[Ga balas DM]', e:{}}
+          ]
+        };
+      } else if(state.path==='neutral'){
+        return {
+          messages:[ {who:'friend', text:'[DM] Teman: Lo abu-abu banget. Mau nolong dia atau engga sih sebenernya?', dm:true} ],
+          choices:[
+            {t:'Gue pengen bantu, tapi ga mau ribut.', e:{loyal:1,trust:1}},
+            {t:'Gue cuma males kena warning mod.', e:{loyal:-1,pat:1}},
+            {t:'Ga penting, bodo amat.', e:{loyal:-2,trust:-1}},
+            {t:'[Ga balas DM]', e:{loyal:-1}}
+          ]
+        };
+      } else {
+        return {
+          messages:[ {who:'friend', text:'[DM] Teman: Lo diem aja terus. Lo ga guna banget di lobby ini.', dm:true} ],
+          choices:[
+            {t:'Gue peduli kok, cuma males ribut.', e:{loyal:0,stress:-1}},
+            {t:'Ga peduli, urusan mereka.', e:{loyal:-2,trust:-1}},
+            {t:'Gue lagi sibuk farming.', e:{loyal:-1}},
+            {t:'[Tetap diam]', e:{loyal:-2,trust:-1}}
+          ]
+        };
+      }
+
+    case 14:
+      // Event 15: Moderator second warning — tone depends on path and previous
+      // compute some modifiers
+      if(state.path==='protector'){
+        return {
+          messages:[
+            {who:'mod', text:'Moderator: Suasana makin panas. Ini peringatan kedua. Lanjut → sanksi. Apresiasi untuk yang sudah membantu menjaga suasana.'}
+          ],
+          choices:[
+            {t:'Baik mod, janji berubah.', e:{pat:2}},
+            {t:'Gue udah usaha, salah mereka.', e:{}},
+            {t:'Guys ayo bareng-bareng minta maaf.', e:{trust:2,pat:1,loyal:1}},
+            {t:'[AFK diam]', e:{}}
+          ]
+        };
+      } else if(state.path==='bully'){
+        return {
+          messages:[
+            {who:'mod', text:'Moderator: Beberapa nama sudah berulang kali muncul di laporan. Ini peringatan kedua. Sekali lagi toxic → BAN.'}
+          ],
+          choices:[
+            {t:'Santai mod, stop kok.', e:{pat:1}},
+            {t:'Wkwk lebay banget.', e:{pat:-2}},
+            {t:'🤣🤣 BAN GW SEKARANG KALO BERANI', e:{pat:-3,stress:2}},
+            {t:'[Diam pura-pura ga baca]', e:{pat:-1}}
+          ]
+        };
+      } else if(state.path==='neutral'){
+        return {
+          messages:[
+            {who:'mod', text:'Moderator: Saya hargai ada yang mencoba menenangkan. Namun spam masih terjadi. Ini peringatan kedua.'}
+          ],
+          choices:[
+            {t:'Oke mod, gue bakal jaga suasana.', e:{pat:2}},
+            {t:'Yaelah, ribut dikit doang.', e:{pat:-2}},
+            {t:'Fokus aja main, jangan ribut lagi.', e:{pat:1,stress:-1}},
+            {t:'[Diam]', e:{pat:-1}}
+          ]
+        };
+      } else {
+        return {
+          messages:[
+            {who:'mod', text:'Moderator: Banyak yang hanya diam. Diam bukan solusi. Ini peringatan kedua untuk semua yang pasif.'}
+          ],
+          choices:[
+            {t:'Oke mod, noted.', e:{pat:1}},
+            {t:'Lah, kenapa gue kena juga?', e:{pat:-2,stress:1}},
+            {t:'Report semua yang ribut!', e:{trust:-1}},
+            {t:'[Tetap diam]', e:{pat:-2,loyal:-1}}
+          ]
+        };
+      }
+
+    /* Phase 3: Event 16..19 (idx 15..18) escalate, based on path */
+    case 15:
+      // Event 16: PlayerBaru near breaking point (public)
+      if(state.path==='protector'){
+        return {
+          messages:[
+            {who:'playerNew', text:'PlayerBaru: Aku capek sih… tapi makasih kamu udah dukung 🙏'},
+            {who:'rand', text:'Random: Drama kecil, lanjut boss aja.'}
+          ],
+          choices:[
+            {t:'Sabar bro, jangan keluar.', e:{trust:2,stress:-2}},
+            {t:'Yaudah keluar aja, gampang nyari pengganti.', e:{trust:-3,stress:2}},
+            {t:'Kalau lo kasih item rare, gue backup lo.', e:{trust:-2,stress:1}},
+            {t:'[Diam]', e:{trust:-1,loyal:-1}}
+          ]
+        };
+      } else if(state.path==='bully'){
+        return {
+          messages:[
+            {who:'playerNew', text:'PlayerBaru: Aku ga tahan lagi kalau terus diginiin!!'},
+            {who:'rand', text:'Random: Drama queen lol.'}
+          ],
+          choices:[
+            {t:'Sabar bro, jangan keluar.', e:{trust:1,stress:-1}},
+            {t:'Keluar aja, gampang nyari pengganti.', e:{trust:-3,stress:2}},
+            {t:'Kasih item baru, gue backup.', e:{trust:-2,stress:1}},
+            {t:'[Diam]', e:{trust:-2}}
+          ]
+        };
+      } else if(state.path==='neutral'){
+        return {
+          messages:[
+            {who:'playerNew', text:'PlayerBaru: Aku bingung… harusnya ada yang dukung, tapi kok sepi.'},
+            {who:'rand', text:'Random: Hmm.’'}
+          ],
+          choices:[
+            {t:'Sabar bro, jangan keluar.', e:{trust:2,stress:-1}},
+            {t:'Yaudah keluar aja, gampang nyari pengganti.', e:{trust:-2,stress:2}},
+            {t:'Kalau lo kasih item rare, gue backup lo.', e:{trust:-1}},
+            {t:'[Diam]', e:{trust:-1}}
+          ]
+        };
+      } else {
+        return {
+          messages:[
+            {who:'playerNew', text:'PlayerBaru: Kenapa ga ada yang peduli… apa aku emang ga pantes main bareng?'},
+            {who:'rand', text:'Random: Silence, then spam.'}
+          ],
+          choices:[
+            {t:'Sabar bro, jangan keluar.', e:{trust:1,stress:-1}},
+            {t:'Keluar aja, cari server lain.', e:{trust:-3,stress:2}},
+            {t:'Kasih item kalau mau stay.', e:{trust:-2,stress:1}},
+            {t:'[Diam]', e:{trust:-2,loyal:-1}}
+          ]
+        };
+      }
+
+    case 16:
+      // Event 17: Teman ultimatum (public then DM)
+      if(state.path==='protector'){
+        return {
+          messages:[
+            {who:'friend', text:'Teman: Lo bener-bener serius jadi pahlawan ya?'},
+            {who:'friend', text:'[DM] Teman: Gue ga bisa main kayak gini. Lo harus pilih: bikin suasana enak atau gue cabut.', dm:true}
+          ],
+          choices:[
+            {t:'Gue pengen bantu dia.', e:{loyal:2,trust:1}},
+            {t:'Gue pengen ngetroll aja.', e:{loyal:1,stress:1,trust:-1}},
+            {t:'Terserah, gue ga peduli.', e:{loyal:-2}},
+            {t:'[Ga balas DM]', e:{loyal:-1}}
+          ]
+        };
+      } else if(state.path==='bully'){
+        return {
+          messages:[
+            {who:'friend', text:'Teman: Lo keterlaluan sumpah, tapi kok ngakak juga.'},
+            {who:'friend', text:'[DM] Teman: Gue ga bisa main kayak gini. Lo harus pilih: bikin suasana enak atau gue cabut.', dm:true}
+          ],
+          choices:[
+            {t:'Gue pengen bantu dia.', e:{loyal:-1,trust:1}},
+            {t:'Gue pengen ngetroll aja.', e:{loyal:1,stress:1,trust:-1}},
+            {t:'Terserah, gue ga peduli.', e:{loyal:-2}},
+            {t:'[Ga balas DM]', e:{loyal:-1}}
+          ]
+        };
+      } else if(state.path==='neutral'){
+        return {
+          messages:[
+            {who:'friend', text:'Teman: Lo ga jelas banget, abu-abu gini.'},
+            {who:'friend', text:'[DM] Teman: Gue ga bisa main kayak gini. Lo harus pilih: bikin suasana enak atau gue cabut.', dm:true}
+          ],
+          choices:[
+            {t:'Gue pengen bantu dia.', e:{loyal:2,trust:1}},
+            {t:'Gue pengen ngetroll aja.', e:{loyal:0,stress:1}},
+            {t:'Terserah, gue ga peduli.', e:{loyal:-2}},
+            {t:'[Ga balas DM]', e:{loyal:-1}}
+          ]
+        };
+      } else {
+        return {
+          messages:[
+            {who:'friend', text:'Teman: Lo ga guna, diem aja terus.'},
+            {who:'friend', text:'[DM] Teman: Gue ga bisa main kayak gini. Lo harus pilih: bikin suasana enak atau gue cabut.', dm:true}
+          ],
+          choices:[
+            {t:'Gue pengen bantu, tapi males ribut.', e:{loyal:0}},
+            {t:'Gue pengen ngetroll aja.', e:{loyal:-1}},
+            {t:'Terserah, gue ga peduli.', e:{loyal:-2}},
+            {t:'[Ga balas DM]', e:{loyal:-2}}
+          ]
+        };
+      }
+
+    case 17:
+      // Event 18: Moderator final warning
+      if(state.path==='protector'){
+        return {
+          messages:[
+            {who:'mod', text:'Moderator: Saya apresiasi upaya beberapa pemain menjaga suasana. Ini WARNING TERAKHIR. Lanjut toxic → sanksi.'}
+          ],
+          choices:[
+            {t:'Oke mod, janji berubah.', e:{pat:2}},
+            {t:'Ban aja sekalian kalo berani.', e:{pat:-3,stress:2}},
+            {t:'Guys, ayo bener-bener chill.', e:{pat:1,trust:1,loyal:1}},
+            {t:'[Diam]', e:{pat:-1}}
+          ]
+        };
+      } else if(state.path==='bully'){
+        return {
+          messages:[
+            {who:'mod', text:'Moderator: Nama kamu sudah sering disebut di laporan. Ini WARNING TERAKHIR. Sekali lagi toxic → BAN.'}
+          ],
+          choices:[
+            {t:'Santai mod, stop kok.', e:{pat:1}},
+            {t:'Wkwk lebay banget.', e:{pat:-2}},
+            {t:'🤣🤣 BAN GW SEKARANG KALO BERANI', e:{pat:-3,stress:2}},
+            {t:'[Diam]', e:{pat:-1}}
+          ]
+        };
+      } else if(state.path==='neutral'){
+        return {
+          messages:[
+            {who:'mod', text:'Moderator: Ada yang mencoba menenangkan, namun spam berlanjut. Ini WARNING TERAKHIR.'}
+          ],
+          choices:[
+            {t:'Oke mod, gue bakal jaga suasana.', e:{pat:2}},
+            {t:'Yaelah, ribut dikit doang.', e:{pat:-2}},
+            {t:'Fokus main, jangan ribut lagi.', e:{pat:1,stress:-1}},
+            {t:'[Diam]', e:{pat:-1}}
+          ]
+        };
+      } else {
+        return {
+          messages:[
+            {who:'mod', text:'Moderator: Diam tidak menyelesaikan masalah. Ini WARNING TERAKHIR untuk semua yang pasif.'}
+          ],
+          choices:[
+            {t:'Oke mod, noted.', e:{pat:1}},
+            {t:'Lah, kenapa gue kena juga?', e:{pat:-2,stress:1}},
+            {t:'Report semua yang ribut!', e:{trust:-1}},
+            {t:'[Tetap diam]', e:{pat:-2,loyal:-1}}
+          ]
+        };
+      }
+
+    case 18:
+      // Event 19: DM final from PlayerBaru
+      if(state.path==='protector'){
+        return {
+          messages:[ {who:'playerNew', text:'[DM] PlayerBaru: Aku percaya sama kamu… tapi kamu beneran temen kan?', dm:true} ],
+          choices:[
+            {t:'Tenang, gue temen lo.', e:{trust:3,stress:-2}},
+            {t:'Lo baper banget.', e:{trust:-3,stress:2}},
+            {t:'Selama lo nurut gue, kita temenan.', e:{trust:-2,stress:1}},
+            {t:'[Ga balas DM]', e:{trust:-2,loyal:-1}}
+          ]
+        };
+      } else if(state.path==='bully'){
+        return {
+          messages:[ {who:'playerNew', text:'[DM] PlayerBaru: Kenapa kamu malah ikutan nge-bully aku?! Aku kira kamu temen 😭', dm:true} ],
+          choices:[
+            {t:'Maaf, gue bercanda.', e:{trust:-1,stress:1}},
+            {t:'Ya salah lo sendiri.', e:{trust:-3,stress:2}},
+            {t:'Kalo lo nurut, gue stop ejek.', e:{trust:-2}},
+            {t:'[Ga balas DM]', e:{trust:-2,stress:1}}
+          ]
+        };
+      } else if(state.path==='neutral'){
+        return {
+          messages:[ {who:'playerNew', text:'[DM] PlayerBaru: Aku masih bingung, kamu dukung aku atau engga?', dm:true} ],
+          choices:[
+            {t:'Gue dukung lo kok.', e:{trust:2,stress:-1}},
+            {t:'Gue ga yakin, maaf.', e:{trust:-1}},
+            {t:'Jangan lebay, main aja.', e:{trust:-2}},
+            {t:'[Ga balas DM]', e:{trust:-1}}
+          ]
+        };
+      } else {
+        return {
+          messages:[ {who:'playerNew', text:'[DM] PlayerBaru: Kamu ga pernah jawab aku… kamu peduli ga sih?', dm:true} ],
+          choices:[
+            {t:'Gue peduli kok, cuma males ribut.', e:{trust:1,stress:-1}},
+            {t:'Sorry, gue ga suka campur urusan orang.', e:{trust:-1,loyal:-1}},
+            {t:'Jujur, gue ga peduli.', e:{trust:-3,stress:2}},
+            {t:'[Ga balas DM]', e:{trust:-2,loyal:-1}}
+          ]
+        };
+      }
+
+    case 19:
+      // Event 20: Match ends — system announces; then go to phase 4
+      return {
+        messages:[ {who:'system', text:'Match selesai. Semua pemain menilai reputasi kamu.'} ],
+        choices:[
+          {t:'(Lanjut ke resolusi)', e:{}}
+        ]
+      };
+
+    /* Phase 4: 20..24 (Event 21..25) resolution & ending */
+    case 20:
+      // Event21: Teman decides
+      return {
+        messages:[
+          {who:'friend', text:(state.loyal>=6? 'Teman: Gue tetep stay sama lo.' : (state.loyal<=3? 'Teman: Gue cabut, males bareng lo lagi.' : 'Teman: Gue masih liat-liat sikap lo.'))}
+        ],
+        choices:[
+          {t:'(Lanjut)', e:{}}
+        ]
+      };
+    case 21:
+      // Event22: PlayerBaru status
+      return {
+        messages:[
+          {who:'playerNew', text:(state.trust>=6 && state.stress<=4? 'PlayerBaru: Aku lega, aku bakal terus main.' : (state.trust<=3? 'PlayerBaru: Aku nyesel masuk lobby ini, aku keluar.' : 'PlayerBaru: Aku masih ragu-ragu...'))}
+        ],
+        choices:[ {t:'(Lanjut)', e:{}} ]
+      };
+    case 22:
+      // Event23: Moderator final decision based on patience
+      return {
+        messages:[
+          {who:'mod', text:(state.pat>=3? 'Moderator: Terima kasih sudah kooperatif. Kamu contoh pemain positif.' : (state.pat>=1? 'Moderator: Kamu aman, tapi tetap dalam pengawasan.' : 'Moderator: Akun kamu telah DI-BAN karena perilaku buruk / pasif tidak kooperatif.'))}
+        ],
+        choices:[ {t:'(Lihat hasil reputasi)', e:{}} ]
+      };
+    case 23:
+      // Event24: System reputasi summary
+      return {
+        messages:[
+          {who:'system', text:'Hasil reputasi: Trust='+state.trust+', Stress='+state.stress+', Loyalty='+state.loyal+', Patience='+state.pat}
+        ],
+        choices:[ {t:'(Lanjut ke epilog)', e:{}} ]
+      };
+    case 24:
+      // Event25: Epilog DM / final text based on path and final meters
+      let endingText = '';
+      if(state.pat<=0){
+        endingText = 'System: Koneksi terputus. Akun kamu diblokir. (Banned Ending)';
+      } else if(state.path==='protector' && state.trust>=6 && state.loyal>=5){
+        endingText = 'PlayerBaru (DM): Makasih ya, kamu beneran nolong aku. Kita main bareng terus. (Protector Ending)';
+      } else if(state.path==='bully' && state.trust<=3){
+        endingText = 'PlayerBaru (DM): Aku harap ga ketemu orang kayak kamu lagi. (Bully Ending)';
+      } else if(state.path==='neutral'){
+        endingText = 'PlayerBaru (DM): Aku masih ga tau… kamu temen atau bukan. (Fence-sitter Ending)';
+      } else if(state.path==='outcast'){
+        endingText = 'PlayerBaru (DM): [Akun ini sudah tidak aktif lagi]. (Lonely Ending)';
+      } else {
+        endingText = 'System: Game selesai — hasil netral. (Neutral Ending)';
+      }
+      return { messages:[ {who:'system', text:endingText} ], choices:[ {t:'Main lagi', e:{}, action:'restart'}, {t:'Export Log', e:{}, action:'export'} ] };
+
+    default:
+      return { messages:[ {who:'system', text:'(Tidak ada event)'} ], choices:[ {t:'Selesai', e:{}} ] };
+  }
+}
+
+/* ---------- Show event ---------- */
+function showEvent(idx){
+  updateHUD();
+  choices.innerHTML = '';
+  const ev = getEvent(idx);
+  // For events with dm:true in first message, open DM popup instead of chat push.
+  // We'll detect if ALL messages are dm (we set dm flag on the first message when DM event).
+  const isDM = ev.messages.length>0 && ev.messages[0].dm===true;
+  if(isDM){
+    // Render DM popup
+    dmMessages.innerHTML = '';
+    dmTitle.innerText = `📩 DM — ${ ev.messages[0].who === 'friend' ? 'Teman' : (ev.messages[0].who==='playerNew' ? 'PlayerBaru' : 'Pesan') }`;
+    dmOverlay.style.display = 'flex';
+    ev.messages.forEach(m=>{
+      const el = document.createElement('div');
+      el.className = 'bubble anim-left';
+      el.style.background='rgba(255,255,255,0.02)';
+      el.style.color='var(--muted)';
+      el.innerText = m.text.replace(/^\[DM\]\s*/,'');
+      dmMessages.appendChild(el);
+    });
+    // render choices inside DM
+    dmChoices.innerHTML = '';
+    ev.choices.forEach(ch=>{
+      const b = document.createElement('button'); b.className='btn'; b.style.margin='6px 0';
+      b.innerText = ch.t;
+      b.onclick = ()=> {
+        // apply effects
+        applyEffects(ch.e);
+        // if ch.setPath set it (only at event9)
+        if(ch.setPath) state.path = ch.setPath;
+        // log choice
+        state.log.push({event: state.idx+1, choice: ch.t, trust: state.trust, stress: state.stress, loyal: state.loyal, pat: state.pat, path: state.path});
+        // close DM and advance
+        dmOverlay.style.display='none';
+        state.idx++; showEvent(state.idx);
+      };
+      dmChoices.appendChild(b);
+    });
+    // also close button (acts like a neutral skip)
+    dmClose.onclick = ()=> { dmOverlay.style.display='none'; /* treat as no choice: neutral effect */ state.idx++; showEvent(state.idx); };
+    updateHUD();
+    return;
+  }
+
+  // not DM: push messages sequentially with small delay for realism
+  pushMessagesSequence(ev.messages, ()=>{
+    // show choices in main UI
+    ev.choices.forEach(ch=>{
+      const btn = document.createElement('button'); btn.className='btn';
+      btn.innerText = ch.t;
+      btn.onclick = ()=> {
+        // if this choice at event idx=8 (branching trigger) has setPath, record it
+        if(ch.setPath) state.path = ch.setPath;
+        // show player's chat bubble
+        pushChat('you', ch.t);
+        // apply effects
+        applyEffects(ch.e);
+        // log choice
+        state.log.push({event: state.idx+1, choice: ch.t, trust: state.trust, stress: state.stress, loyal: state.loyal, pat: state.pat, path: state.path});
+        // advance
+        setTimeout(()=>{ state.idx++; showEvent(state.idx); }, 520);
+      };
+      choices.appendChild(btn);
+    });
+    updateHUD();
+  });
+}
+
+/* push messages sequentially helper */
+function pushMessagesSequence(messages, cb){
+  let i=0;
+  function next(){
+    if(i>=messages.length){ if(cb) cb(); return; }
+    const m = messages[i++];
+    if(m.who==='system'){
+      pushSystem(m.text);
+    } else {
+      // some messages already come with prefix like 'Random1: ...' – show as raw bubble with name char rand
+      // detect if starts with 'Random' or other labels — we will show using rand identity for most
+      if(m.text.startsWith('Random') || m.who==='rand') pushChat('rand', m.text);
+      else if(m.text.startsWith('PlayerBaru') || m.who==='playerNew') pushChat('playerNew', m.text.replace(/^PlayerBaru:\s*/,''));
+      else if(m.who==='mod') pushChat('mod', m.text.replace(/^Moderator:\s*/,''));
+      else if(m.who==='friend') pushChat('friend', m.text.replace(/^\[DM\]\s*/,''));
+      else pushChat(m.who, m.text);
+    }
+    setTimeout(next, 320 + Math.min(600, (m.text.length * 6)));
+  }
+  next();
+}
+
+/* apply effects helper */
+function applyEffects(e){
+  if(!e) return;
+  if(typeof e.trust === 'number') state.trust += e.trust;
+  if(typeof e.stress === 'number') state.stress += e.stress;
+  if(typeof e.loyal === 'number') state.loyal += e.loyal;
+  if(typeof e.pat === 'number') state.pat += e.pat;
+  updateHUD();
+}
+
+/* export log */
+function exportLog(){
+  let txt = 'InsideTheLobby - Session Log\n\n';
+  state.log.forEach(r=>{
+    txt += `Event ${r.event}: ${r.choice} | trust:${r.trust} stress:${r.stress} loyal:${r.loyal} pat:${r.pat} path:${r.path}\n`;
+  });
+  navigator.clipboard?.writeText(txt).then(()=> alert('Log tersalin ke clipboard. Paste di notepad untuk simpan.'), ()=> { prompt('Salin manual teks ini:', txt); });
+}
+
+/* handle action buttons on final event choices */
+function handleFinalAction(action){
+  if(action==='restart') location.reload();
+  if(action==='export') exportLog();
+}
+
+/* Initialize and start */
+(function init(){
+  state.idx = 0; state.trust=5; state.stress=5; state.loyal=5; state.pat=5; state.path=null;
+  updateHUD();
+  showEvent(state.idx);
+})();
+
+</script>
+</body>
+</html>
