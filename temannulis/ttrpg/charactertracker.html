@@ -279,7 +279,7 @@
         <label>Skill +1</label>
         <select id="skill1"></select>
 
-        <label for="notes">Notes</label>
+        <label for="notes">Catatan</label>
         <textarea id="notes" placeholder="Catatan soal karakter, kejadian sesi, kondisi khusus, dll."></textarea>
 
         <button type="submit" style="margin-top:12px;">Tambahkan</button>
@@ -441,10 +441,10 @@
       "Mati",
       "Keracunan",
       "Beku",
-      "Raib",
+      "Gaib",
       "Tidur",
       "Terjerat",
-      "Custom"
+      "Lain-lain"
     ];
 
     let party = JSON.parse(localStorage.getItem("tn_party") || "[]");
@@ -883,7 +883,7 @@
             <button class="small" onclick="addInventoryItem('${character.id}')">Tambah Item</button>
           </div>
 
-          <h4>Notes</h4>
+          <h4>Catatan</h4>
             <textarea oninput="updateNotes('${character.id}', this.value)" placeholder="Catatan soal karakter, kejadian sesi, kondisi khusus...">${escapeHTML(character.notes || "")}</textarea>
 
           <button class="danger" style="margin-top:10px;" onclick="removeCharacter('${character.id}')">Hapus</button>
