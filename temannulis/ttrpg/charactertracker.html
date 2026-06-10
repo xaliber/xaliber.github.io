@@ -840,7 +840,7 @@
             </div>
           ` : ""}
 
-          <h4>Skills</h4>
+          <h4>Kemampuan</h4>
           <div class="skill-grid">
             ${Object.entries(finalSkills).map(([skill, data]) => `
               <div>${skill} <span class="muted">(${ [ data.classBonus ? "+" + data.classBonus + " profesi" : "", data.chosen ? "+" + data.chosen + " pilihan" : "" ].filter(Boolean).join(", ") })</span></div>
@@ -880,7 +880,7 @@
 
           <div class="row">
             <input id="new-item-${character.id}" placeholder="Contoh: 3 obor / peta tua / kunci besi" />
-            <button class="small" onclick="addInventoryItem('${character.id}')">Tambah Item</button>
+            <button class="small" onclick="addInventoryItem('${character.id}')">Tambah Barang</button>
           </div>
 
           <h4>Catatan</h4>
