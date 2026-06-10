@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Teman Nulis Game Master Tracker</title>
+  <title>Teman Nulis Character Tracker</title>
   <style>
     :root {
       --bg: #f6f3ee;
@@ -242,8 +242,8 @@
 
 <body>
   <header>
-    <h1>Teman Nulis Game Master Tracker</h1>
-    <div class="muted">Masukkan karakter bikinan pemain di sini untuk memudahkan tracking. Perlengkapan dan skill akan terisi sesuai profesi. Gunakan lembaran ini untuk tracking HP (Nyawa), MP (Kebatinan), perlengkapan, dll.</div>
+    <h1>Teman Nulis Character Tracker</h1>
+    <p class="muted">Masukkan karakter bikinan pemain di sini untuk memudahkan tracking. Perlengkapan dan skill akan terisi sesuai profesi. Gunakan lembaran ini untuk tracking HP (Nyawa), MP (Kebatinan), perlengkapan, dll.</p>
   </header>
 
   <main>
@@ -279,7 +279,7 @@
         <select id="skill1"></select>
 
         <label for="notes">Notes</label>
-        <textarea id="notes" placeholder="Catatan soal sifat karakter, momen tertentu dalam cerita, dll."></textarea>
+        <textarea id="notes" placeholder="Catatan soal karakter, kejadian sesi, kondisi khusus, dll."></textarea>
 
         <button type="submit" style="margin-top:12px;">Tambahkan</button>
       </form>
@@ -654,7 +654,7 @@
       const item = character.inventory.find(i => i.id === itemId);
 
       character.inventory = character.inventory.filter(i => i.id !== itemId);
-      character.log = `${item ? item.name : "Item"} dihapus dari inventory.`;
+      character.log = `${item ? item.name : "Item"} dihapus dari perlengkapan.`;
 
       save();
       render();
