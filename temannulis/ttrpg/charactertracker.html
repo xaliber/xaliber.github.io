@@ -1,0 +1,992 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Teman Nulis Game Master Tracker</title>
+  <style>
+    :root {
+      --bg: #f6f3ee;
+      --panel: #fff;
+      --ink: #211f1c;
+      --muted: #777;
+      --line: #ddd4c7;
+      --accent: #517784;
+      --accent-2: #a395c6;
+      --danger: #b83232;
+      --ok: #2f7d4f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--line);
+      background: #eadfd1;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 10px;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
+      padding: 18px;
+    }
+
+    section, .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 4px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    label.import {
+      color: white; 
+      border-radius: 8px; 
+      padding: 9px 10px 8px; 
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font: inherit;
+      background: #fff;
+    }
+
+    textarea {
+      min-height: 70px;
+      resize: vertical;
+    }
+
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+      border: 0;
+      font-weight: 700;
+    }
+
+    button.secondary, label.secondary {
+      background: var(--accent-2);
+    }
+
+    button.danger, label.danger {
+      background: var(--danger);
+    }
+
+    button.small, label.small {
+      width: auto;
+      padding: 6px 9px;
+      font-size: 0.85rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .row > * {
+      flex: 1;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 14px;
+    }
+
+    .card h3 {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: #eee3d5;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .statline {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 10px 0;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+      background: #fbf8f3;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.3rem;
+    }
+
+    ul {
+      margin: 6px 0 12px 20px;
+      padding: 0;
+    }
+
+    .skill-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 8px;
+      margin-bottom: 12px;
+    }
+
+    .skill-grid div:nth-child(even) {
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .log {
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #f8f8f8;
+      border: 1px solid var(--line);
+      min-height: 42px;
+      font-size: 0.9rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar button, .toolbar label {
+      width: auto;
+      margin: 0;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .inventory-list {
+      list-style: none;
+      margin-left: 0;
+    }
+
+    .inventory-item {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .inventory-item-name {
+      flex: 1;
+    }
+
+    .inventory-actions {
+      display: flex;
+      gap: 4px;
+      flex: 0 0 auto;
+    }
+
+    .inventory-actions button {
+      width: auto;
+      padding: 4px 7px;
+    }
+
+    @media (max-width: 850px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Teman Nulis Game Master Tracker</h1>
+    <div class="muted">Masukkan karakter bikinan pemain di sini untuk memudahkan tracking. Perlengkapan dan skill akan terisi sesuai profesi. Gunakan lembaran ini untuk tracking HP (Nyawa), MP (Kebatinan), perlengkapan, dll.</div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Tambahkan Karakter</h2>
+
+      <form id="characterForm">
+        <label for="name">Nama</label>
+        <input id="name" required placeholder="Mulyono, Darsono, Mak Klenik, dll." />
+
+        <label for="type">Profesi</label>
+        <select id="type" required></select>
+
+        <label for="weapon">Senjata nonpistol</label>
+        <input id="weapon" placeholder="belati, pedang, kapak, dll." />
+
+        <label for="specialItem">Benda khusus karakter</label>
+        <input id="specialItem" placeholder="liontin keramat, buku bacaan, dll." />
+
+        <h3 style="margin-top:16px;">Kemampuan</h3>
+        <p class="muted">Pilih 4 kemampuan (skill) berbeda. Bonus profesi otomatis ditambahkan setelah memilih profesi.</p>
+
+        <label>Skill +4</label>
+        <select id="skill4"></select>
+
+        <label>Skill +3</label>
+        <select id="skill3"></select>
+
+        <label>Skill +2</label>
+        <select id="skill2"></select>
+
+        <label>Skill +1</label>
+        <select id="skill1"></select>
+
+        <label for="notes">Notes</label>
+        <textarea id="notes" placeholder="Catatan soal sifat karakter, momen tertentu dalam cerita, dll."></textarea>
+
+        <button type="submit" style="margin-top:12px;">Tambahkan</button>
+      </form>
+    </section>
+
+    <section>
+      <div class="toolbar">
+        <button class="secondary" id="exportBtn">Unduh Data Sesi</button>
+        <label class="secondary import">
+          Unggah Data Sesi
+          <input id="importInput" type="file" accept="application/json" class="hidden" />
+        </label>
+        <button class="danger" id="clearBtn">Hapus Semua</button>
+      </div>
+
+      <div id="party" class="cards"></div>
+    </section>
+  </main>
+
+  <script>
+    const SKILLS = [
+      "Atletik",
+      "Sejarah",
+      "Persepsi",
+      "Medis",
+      "Klandestin",
+      "Ketangkasan tangan",
+      "Persuasi",
+      "Tipuan",
+      "Investigasi"
+    ];
+
+    const TYPES = {
+      "Petarung": {
+        immunity: 3,
+        inventory: [
+          "5 obor",
+          "5 ransum",
+          "1 wadah air",
+          "1 piton",
+          "1 korek minyak",
+          "1 gulung tali",
+          "1 kapak pendek"
+        ],
+        skillBonuses: {
+          "Atletik": 1,
+          "Klandestin": 1
+        }
+      },
+
+      "Medis": {
+        immunity: 2,
+        inventory: [
+          "1 kotak perlengkapan medis",
+          "5 obor",
+          "5 ransum",
+          "1 wadah air",
+          "1 korek minyak",
+          "1 botol racun"
+        ],
+        skillBonuses: {
+          "Medis": 2,
+          "Ketangkasan tangan": 1
+        },
+        canHeal: true
+      },
+
+      "Performer": {
+        immunity: 2,
+        inventory: [
+          "1 paket penyamaran/kostum",
+          "1 alat musik",
+          "5 obor",
+          "5 ransum",
+          "1 wadah air",
+          "1 korek minyak"
+        ],
+        skillBonuses: {
+          "Persuasi": 1,
+          "Tipuan": 1
+        }
+      },
+
+      "Ilmuwan": {
+        immunity: 2,
+        inventory: [
+          "1 buku sejarah",
+          "3 botol racun",
+          "5 obor",
+          "5 ransum",
+          "1 wadah air",
+          "1 korek minyak"
+        ],
+        skillBonuses: {
+          "Sejarah": 1,
+          "Investigasi": 1
+        }
+      },
+
+      "Kriminal": {
+        immunity: 3,
+        inventory: [
+          "1 linggis",
+          "1 piton",
+          "1 gulung tali",
+          "5 obor",
+          "5 ransum",
+          "1 wadah air",
+          "1 korek minyak"
+        ],
+        skillBonuses: {
+          "Atletik": 1,
+          "Klandestin": 1,
+          "Ketangkasan tangan": 1
+        }
+      },
+
+      "Dukun": {
+        immunity: 3,
+        inventory: [
+          "1 buku mantra",
+          "1 paket ritual",
+          "5 obor",
+          "5 ransum",
+          "1 wadah air",
+          "1 korek minyak"
+        ],
+        skillBonuses: {
+          "Sejarah": 1,
+          "Persepsi": 1,
+          "Medis": 2
+        },
+        canCastSpells: true
+      },
+
+      "Cenayang": {
+        immunity: 3,
+        inventory: [
+          "1 jimat/tongkat sihir",
+          "1 buku mantra",
+          "5 obor",
+          "5 ransum",
+          "1 wadah air",
+          "1 korek minyak"
+        ],
+        skillBonuses: {
+          "Persepsi": 1,
+          "Persuasi": 1
+        },
+        canCastSpells: true
+      }
+    };
+
+    const STATUSES = [
+      "Normal",
+      "Terluka",
+      "Pingsan",
+      "Mati",
+      "Keracunan",
+      "Beku",
+      "Raib",
+      "Tidur",
+      "Terjerat",
+      "Custom"
+    ];
+
+    let party = JSON.parse(localStorage.getItem("tn_party") || "[]");
+
+    party = party.map(character => {
+      if (!character.inventory) {
+        const typeRules = TYPES[character.type];
+
+        character.inventory = makeInventory({
+          weapon: character.weapon,
+          specialItem: character.specialItem
+        }, typeRules);
+      }
+
+      character.inventory = character.inventory.map(item => {
+        if (typeof item === "string") return parseInventoryItem(item);
+        if (!item.id) item.id = crypto.randomUUID();
+        return item;
+      });
+
+      return character;
+    });
+
+    save();
+
+    const typeSelect = document.getElementById("type");
+    const partyEl = document.getElementById("party");
+
+    function save() {
+      localStorage.setItem("tn_party", JSON.stringify(party));
+    }
+
+    function rollD6() {
+      return Math.floor(Math.random() * 6) + 1;
+    }
+
+    function fillSelects() {
+      Object.keys(TYPES).forEach(type => {
+        const opt = document.createElement("option");
+        opt.value = type;
+        opt.textContent = type;
+        typeSelect.appendChild(opt);
+      });
+
+      ["skill4", "skill3", "skill2", "skill1"].forEach(id => {
+        const select = document.getElementById(id);
+        SKILLS.forEach(skill => {
+          const opt = document.createElement("option");
+          opt.value = skill;
+          opt.textContent = skill;
+          select.appendChild(opt);
+        });
+      });
+    }
+
+    function buildCharacter(formData) {
+      const typeRules = TYPES[formData.type];
+
+      const chosenSkills = {
+        [formData.skill4]: 4,
+        [formData.skill3]: 3,
+        [formData.skill2]: 2,
+        [formData.skill1]: 1
+      };
+
+      return {
+        id: crypto.randomUUID(),
+        name: formData.name,
+        type: formData.type,
+        weapon: formData.weapon || "-",
+        specialItem: formData.specialItem || "-",
+        inventory: makeInventory(formData, typeRules),
+        notes: formData.notes || "",
+        maxHP: 10,
+        hp: 10,
+        immunity: typeRules.immunity,
+        status: "Normal",
+        chosenSkills,
+        mp: typeRules.canCastSpells ? 10 : null,
+        maxMP: typeRules.canCastSpells ? 10 : null,
+        lowSpellsUsed: 0,
+        midSpellsUsed: 0,
+        highSpellsUsed: 0,
+        log: "Karakter ditambahkan."
+      };
+    }
+
+    function getFinalSkills(character) {
+      const typeRules = TYPES[character.type];
+      const result = {};
+
+      SKILLS.forEach(skill => {
+        const chosen = character.chosenSkills[skill] || 0;
+        const classBonus = typeRules.skillBonuses[skill] || 0;
+        const total = chosen + classBonus;
+
+        if (total > 0) {
+          result[skill] = {
+            chosen,
+            classBonus,
+            total
+          };
+        }
+      });
+
+      return result;
+    }
+
+    function parseInventoryItem(raw) {
+      const text = String(raw).trim();
+      const match = text.match(/^(\d+)\s+(.+)$/);
+
+      return {
+        id: crypto.randomUUID(),
+        qty: match ? Number(match[1]) : 1,
+        name: match ? match[2] : text
+      };
+    }
+
+    function makeInventory(formData, typeRules) {
+      const items = [];
+
+      if (formData.weapon && formData.weapon !== "-") {
+        items.push(parseInventoryItem("1 " + formData.weapon));
+      }
+
+      typeRules.inventory.forEach(item => {
+        items.push(parseInventoryItem(item));
+      });
+
+      if (formData.specialItem && formData.specialItem !== "-") {
+        items.push(parseInventoryItem("1 " + formData.specialItem));
+      }
+
+      return items;
+    }
+
+    function getInventory(character) {
+      return character.inventory || [];
+    }
+
+    function updateHP(id, amount) {
+      const character = party.find(c => c.id === id);
+      character.hp = Math.max(0, Math.min(character.maxHP, character.hp + amount));
+
+      if (character.hp === 0 && character.status !== "Mati") {
+        character.status = "Pingsan";
+      }
+
+      character.log = `Nyawa ${amount > 0 ? "disembuhkan" : "menghilang"} ${Math.abs(amount)}.`;
+      save();
+      render();
+    }
+
+    function setStatus(id, status) {
+      const character = party.find(c => c.id === id);
+      character.status = status;
+      character.log = `Status sekarang: ${status}.`;
+      save();
+      render();
+    }
+
+    function updateMP(id, amount) {
+      const character = party.find(c => c.id === id);
+      if (character.mp === null) return;
+
+      character.mp = Math.max(0, Math.min(character.maxMP, character.mp + amount));
+      character.log = `Kebatinan ${amount > 0 ? "dipulihkan" : "dikuras"} ${Math.abs(amount)}.`;
+      save();
+      render();
+    }
+
+    function updateImmunity(id, amount) {
+      const character = party.find(c => c.id === id);
+      character.immunity = Math.max(0, character.immunity + amount);
+      character.log = `Imunitas ${amount > 0 ? "bertambah" : "berkurang"} ${Math.abs(amount)}.`;
+      save();
+      render();
+    }
+
+    function updateNotes(id, value) {
+      const character = party.find(c => c.id === id);
+      character.notes = value;
+      save();
+    }
+
+    function updateInventoryQty(id, itemId, amount) {
+      const character = party.find(c => c.id === id);
+      const item = character.inventory.find(i => i.id === itemId);
+
+      if (!item) return;
+
+      item.qty += amount;
+
+      if (item.qty <= 0) {
+        character.inventory = character.inventory.filter(i => i.id !== itemId);
+        character.log = `${item.name} habis/dihapus dari perlengkapan.`;
+      } else {
+        character.log = `${item.name}: jumlah sekarang ${item.qty}.`;
+      }
+
+      save();
+      render();
+    }
+
+    function removeInventoryItem(id, itemId) {
+      const character = party.find(c => c.id === id);
+      const item = character.inventory.find(i => i.id === itemId);
+
+      character.inventory = character.inventory.filter(i => i.id !== itemId);
+      character.log = `${item ? item.name : "Item"} dihapus dari inventory.`;
+
+      save();
+      render();
+    }
+
+    function addInventoryItem(id) {
+      const input = document.getElementById(`new-item-${id}`);
+      const value = input.value.trim();
+
+      if (!value) return;
+
+      const character = party.find(c => c.id === id);
+      character.inventory.push(parseInventoryItem(value));
+      character.log = `${value} ditambahkan ke inventory.`;
+
+      save();
+      render();
+    }
+
+    function useSpell(id, level) {
+      const character = party.find(c => c.id === id);
+
+      if (level === "low") {
+        if (character.mp < 1) return alert("Kemampuan Kebatinannya habis.");
+        if (character.lowSpellsUsed >= 5) return alert("Batas mantra kelas rendah habis.");
+        character.mp -= 1;
+        character.lowSpellsUsed += 1;
+        character.log = "Rapal mantra kelas rendah: -1 Kebatinan.";
+      }
+
+      if (level === "mid") {
+        if (character.mp < 2) return alert("Kemampuan Kebatinannya habis.");
+        if (character.midSpellsUsed >= 3) return alert("Batas mantra kelas menengah habis.");
+        character.mp -= 2;
+        character.midSpellsUsed += 1;
+        character.log = "Rapal mantra kelas menengah: -2 Kebatinan.";
+      }
+
+      if (level === "high") {
+        if (character.mp < 3) return alert("Kemampuan Kebatinannya habis.");
+        if (character.highSpellsUsed >= 2) return alert("Batas mantra kelas tinggi habis.");
+        character.mp -= 3;
+        character.highSpellsUsed += 1;
+        character.log = "Rapal mantra kelas tinggi: -3 Kebatinan.";
+      }
+
+      save();
+      render();
+    }
+
+    function rollSkill(id) {
+      const character = party.find(c => c.id === id);
+      const select = document.getElementById(`roll-${id}`);
+      const skill = select.value;
+      const finalSkills = getFinalSkills(character);
+      const bonus = finalSkills[skill]?.total || 0;
+      const roll = rollD6();
+      const total = roll + bonus;
+
+      character.log = `${skill}: d6(${roll}) + ${bonus} = ${total}`;
+      save();
+      render();
+    }
+
+    function rollAttack(id) {
+      const character = party.find(c => c.id === id);
+      const roll = rollD6();
+      character.log = `Attack roll: d6(${roll}). Serangan masuk jika roll > imunitas.`;
+      save();
+      render();
+    }
+
+    function rollDamage(id) {
+      const character = party.find(c => c.id === id);
+      const roll = rollD6();
+      character.log = `Damage roll: ${roll}`;
+      save();
+      render();
+    }
+
+    function rollHeal(id) {
+      const character = party.find(c => c.id === id);
+      const success = rollD6();
+
+      if (success <= 2) {
+        character.log = `Penyembuhan gagal: d6(${success}) tidak di atas 2.`;
+      } else {
+        const healing = rollD6();
+        character.log = `Penyembuhan berhasil: d6(${success}). Healing roll: ${healing}. Sasaran disembuhkan, max Nyawa 10.`;
+      }
+
+      save();
+      render();
+    }
+
+    function removeCharacter(id) {
+      if (!confirm("Hapus karakter ini?")) return;
+      party = party.filter(c => c.id !== id);
+      save();
+      render();
+    }
+
+    function render() {
+      partyEl.innerHTML = "";
+
+      if (party.length === 0) {
+        partyEl.innerHTML = `<section><h2>Belum ada karakter terdaftar</h2><p class="muted">Tambahkan karakter yang bermain di sesi ini (Mulyono, Teddy, Opung, dll).</p></section>`;
+        return;
+      }
+
+      party.forEach(character => {
+        const typeRules = TYPES[character.type];
+        const finalSkills = getFinalSkills(character);
+        const inventory = getInventory(character);
+
+        const card = document.createElement("article");
+        card.className = "card";
+
+        card.innerHTML = `
+          <h3>
+            <span>${escapeHTML(character.name)}</span>
+            <span class="tag">${character.type}</span>
+          </h3>
+
+          <div class="log">${escapeHTML(character.log || "")}</div>
+
+          <div class="statline">
+            <div class="stat">
+              <span>Nyawa</span>
+              <strong>${character.hp}/${character.maxHP}</strong>
+            </div>
+            <div class="stat">
+              <span>Imunitas</span>
+              <strong>${character.immunity}</strong>
+            </div>
+            <div class="stat">
+              <span>Status</span>
+              <strong style="font-size:1rem;">${character.status}</strong>
+            </div>
+          </div>
+
+          <div class="row">
+            <button class="small danger" onclick="updateHP('${character.id}', -1)">-1 Nyawa</button>
+            <button class="small" onclick="updateHP('${character.id}', 1)">+1 Nyawa</button>
+          </div>
+
+          <div class="row" style="margin-top:8px;">
+            <button class="small danger" onclick="updateImmunity('${character.id}', -1)">-1 Imunitas</button>
+            <button class="small" onclick="updateImmunity('${character.id}', 1)">+1 Imunitas</button>
+          </div>
+
+          <label>Status</label>
+          <select onchange="setStatus('${character.id}', this.value)">
+            ${STATUSES.map(s => `<option value="${s}" ${s === character.status ? "selected" : ""}>${s}</option>`).join("")}
+          </select>
+
+          ${typeRules.canCastSpells ? `
+            <div class="statline">
+              <div class="stat">
+                <span>Kebatinan</span>
+                <strong>${character.mp}/${character.maxMP}</strong>
+              </div>
+              <div class="stat">
+                <span>Low</span>
+                <strong>${character.lowSpellsUsed}/5</strong>
+              </div>
+              <div class="stat">
+                <span>Mid/High</span>
+                <strong>${character.midSpellsUsed}/3 ${character.highSpellsUsed}/2</strong>
+              </div>
+            </div>
+
+            <div class="row">
+              <button class="small" onclick="useSpell('${character.id}', 'low')">Rapal K. Rendah</button>
+              <button class="small" onclick="useSpell('${character.id}', 'mid')">Rapal K. Tengah</button>
+              <button class="small" onclick="useSpell('${character.id}', 'high')">Rapal K. Tinggi</button>
+            </div>
+
+            <div class="row" style="margin-top:8px;">
+              <button class="small secondary" onclick="updateMP('${character.id}', 1)">+1 Kebatinan</button>
+              <button class="small secondary" onclick="updateMP('${character.id}', -1)">-1 Kebatinan</button>
+            </div>
+          ` : ""}
+
+          <h4>Skills</h4>
+          <div class="skill-grid">
+            ${Object.entries(finalSkills).map(([skill, data]) => `
+              <div>${skill} <span class="muted">(${ [ data.classBonus ? "+" + data.classBonus + " profesi" : "", data.chosen ? "+" + data.chosen + " pilihan" : "" ].filter(Boolean).join(", ") })</span></div>
+              <div>+${data.total}</div>
+            `).join("")}
+          </div>
+
+<!--
+          <label>Roll Skill</label>
+          <div class="row">
+            <select id="roll-${character.id}">
+              ${SKILLS.map(skill => `<option value="${skill}">${skill}</option>`).join("")}
+            </select>
+            <button class="small" onclick="rollSkill('${character.id}')">Roll</button>
+          </div>
+
+          <div class="row" style="margin-top:8px;">
+            <button class="small secondary" onclick="rollAttack('${character.id}')">Attack Roll</button>
+            <button class="small secondary" onclick="rollDamage('${character.id}')">Damage Roll</button>
+            ${typeRules.canHeal ? `<button class="small secondary" onclick="rollHeal('${character.id}')">Heal Roll</button>` : ""}
+          </div>
+-->
+
+          <h4>Perlengkapan</h4>
+          <ul class="inventory-list">
+            ${inventory.map(item => `
+              <li class="inventory-item">
+                <span class="inventory-item-name">${item.qty} ${escapeHTML(item.name)}</span>
+                <span class="inventory-actions">
+                  <button class="secondary" onclick="updateInventoryQty('${character.id}', '${item.id}', -1)">-</button>
+                  <button onclick="updateInventoryQty('${character.id}', '${item.id}', 1)">+</button>
+                  <button class="danger" onclick="removeInventoryItem('${character.id}', '${item.id}')">x</button>
+                </span>
+              </li>
+            `).join("")}
+          </ul>
+
+          <div class="row">
+            <input id="new-item-${character.id}" placeholder="Contoh: 3 obor / peta tua / kunci besi" />
+            <button class="small" onclick="addInventoryItem('${character.id}')">Tambah Item</button>
+          </div>
+
+          <h4>Notes</h4>
+            <textarea oninput="updateNotes('${character.id}', this.value)" placeholder="Catatan soal karakter, kejadian sesi, kondisi khusus...">${escapeHTML(character.notes || "")}</textarea>
+
+          <button class="danger" style="margin-top:10px;" onclick="removeCharacter('${character.id}')">Hapus</button>
+        `;
+
+        partyEl.appendChild(card);
+      });
+    }
+
+    function escapeHTML(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    document.getElementById("characterForm").addEventListener("submit", event => {
+      event.preventDefault();
+
+      const formData = {
+        name: document.getElementById("name").value.trim(),
+        type: document.getElementById("type").value,
+        weapon: document.getElementById("weapon").value.trim(),
+        specialItem: document.getElementById("specialItem").value.trim(),
+        skill4: document.getElementById("skill4").value,
+        skill3: document.getElementById("skill3").value,
+        skill2: document.getElementById("skill2").value,
+        skill1: document.getElementById("skill1").value,
+        notes: document.getElementById("notes").value.trim()
+      };
+
+      const selectedSkills = [formData.skill4, formData.skill3, formData.skill2, formData.skill1];
+      const uniqueSkills = new Set(selectedSkills);
+
+      if (uniqueSkills.size !== selectedSkills.length) {
+        alert("Pilih 4 skill berbeda.");
+        return;
+      }
+
+      party.push(buildCharacter(formData));
+      save();
+      render();
+      event.target.reset();
+    });
+
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(party, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = "teman-nulis-session.json";
+      a.click();
+
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("importInput").addEventListener("change", event => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        try {
+          party = JSON.parse(reader.result).map(character => {
+            if (!character.inventory) {
+              const typeRules = TYPES[character.type];
+
+              character.inventory = makeInventory({
+                weapon: character.weapon,
+                specialItem: character.specialItem
+              }, typeRules);
+            }
+
+            character.inventory = character.inventory.map(item => {
+              if (typeof item === "string") return parseInventoryItem(item);
+              if (!item.id) item.id = crypto.randomUUID();
+              return item;
+            });
+
+            return character;
+          });
+          save();
+          render();
+        } catch {
+          alert("File JSON tidak sesuai.");
+        }
+      };
+
+      reader.readAsText(file);
+    });
+
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      if (!confirm("Hapus semua karakter?")) return;
+      party = [];
+      save();
+      render();
+    });
+
+    fillSelects();
+    render();
+  </script>
+</body>
+</html>
