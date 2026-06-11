@@ -1084,7 +1084,7 @@
         character.spells[level] = character.spells[level].filter(spell => spell.id !== spellId);
       });
 
-      character.log = `${removed ? removed.name : "Mantra"} dilepas.`;
+      character.log = `Hafalan mantra ${removed ? removed.name : "Mantra"} dilupakan.`;
       save();
       render();
     }
