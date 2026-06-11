@@ -140,6 +140,38 @@
       border-bottom: 1px solid var(--line);
       padding-bottom: 8px;
     }
+	
+	.card-header {
+	  display: flex;
+	  justify-content: space-between;
+	  gap: 8px;
+	  align-items: center;
+	  border-bottom: 1px solid var(--line);
+	  padding-bottom: 8px;
+	  margin-bottom: 10px;
+	}
+	
+	.card-title {
+	  display: flex;
+	  flex-direction: column;
+	  gap: 4px;
+	}
+	
+	.card-title strong {
+	  font-size: 1.1rem;
+	}
+	
+	.collapse-toggle {
+	  width: auto;
+	  padding: 5px 8px;
+	  border-radius: 999px;
+	  background: #eee3d5;
+	  color: var(--ink);
+	}
+	
+	.card.collapsed .card-body {
+	  display: none;
+	}
 
     .tag {
       display: inline-block;
@@ -149,7 +181,26 @@
       font-size: 0.8rem;
       font-weight: 700;
     }
-
+	
+	.tag::before {
+	  margin-right: 6px; font-size: 1rem; vertical-align: middle;
+	}
+	
+	.tag-petarung::before { content: "\2694"; }
+	.tag-medis::before { content: "\1F33F"; }
+	.tag-performer::before { content: "\1F3AD"; }
+	.tag-ilmuwan::before { content: "\1F9EA"; }
+	.tag-kriminal::before { content: "\1F511"; }
+	.tag-dukun::before { content: "\2728"; }
+	.tag-cenayang::before { content: "\1F52E"; }
+	
+	.tag-genderuwo::before { content: "\1F479"; }
+	.tag-tuyul::before { content: "\1F47B"; }
+	.tag-pertapa::before,
+	.tag-demit::before,
+	.tag-manticore::before { content: "\1F9D9"; }
+	.tag-musuh::before { content: "\2620"; }
+	  
     .muted {
       color: var(--muted);
       font-size: 0.9rem;
@@ -712,7 +763,27 @@
     function rollD6() {
       return Math.floor(Math.random() * 6) + 1;
     }
-
+	
+	let collapsedCards = new Set();
+	
+	function getTagClass(character) {
+	  if (character.isEnemy) {
+	    return `tag-${normalizeName(character.name).replaceAll(" ", "-")}`;
+	  }
+	
+	  return `tag-${normalizeName(character.type).replaceAll(" ", "-")}`;
+	}
+	
+	function toggleCard(id) {
+	  if (collapsedCards.has(id)) {
+	    collapsedCards.delete(id);
+	  } else {
+	    collapsedCards.add(id);
+	  }
+	
+	  render();
+	}
+	  
     function normalizeName(value) {
       return String(value || "").trim().toLowerCase();
     }
@@ -1391,13 +1462,24 @@
         const card = document.createElement("article");
         card.className = "card";
 
-        card.innerHTML = `
-          <h3>
-            <span>${escapeHTML(character.name)}</span>
-            <span class="tag">${character.type}</span>
-          </h3>
-
-          <div class="log">${escapeHTML(character.log || "")}</div>
+        const isCollapsed = collapsedCards.has(character.id);
+		
+		card.className = `card ${isCollapsed ? "collapsed" : ""}`;
+		
+		card.innerHTML = `
+		  <div class="card-header">
+		    <div class="card-title">
+		      <strong>${escapeHTML(character.name)}</strong>
+		      <span class="tag ${getTagClass(character)}">${character.type}</span>
+		    </div>
+		
+		    <button class="collapse-toggle" onclick="toggleCard('${character.id}')">
+		      ${isCollapsed ? "+" : "x"}
+		    </button>
+		  </div>
+		
+		  <div class="card-body">
+		    <div class="log">${escapeHTML(character.log || "")}</div>
 
           <div class="statline">
             <div class="stat">
@@ -1482,6 +1564,7 @@
             <textarea oninput="updateNotes('${character.id}', this.value)" placeholder="Catatan soal karakter, kejadian sesi, kondisi khusus...">${escapeHTML(character.notes || "")}</textarea>
 
           <button class="danger" style="margin-top:10px;" onclick="removeCharacter('${character.id}')">Hapus</button>
+		  </div>
         `;
 
         partyEl.appendChild(card);
