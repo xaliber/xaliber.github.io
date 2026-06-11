@@ -232,6 +232,71 @@
       padding: 4px 7px;
     }
 
+
+    .spell-setup,
+    .spell-panel {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fbf8f3;
+    }
+
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .checkbox-option {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      font-weight: 500;
+    }
+
+    .checkbox-option input {
+      width: auto;
+      margin-top: 4px;
+    }
+
+    .spell-list {
+      list-style: none;
+      margin-left: 0;
+    }
+
+    .spell-item {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .spell-meta {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .spell-actions {
+      display: flex;
+      gap: 4px;
+      flex: 0 0 auto;
+    }
+
+    .spell-actions button {
+      width: auto;
+      padding: 4px 7px;
+    }
+
     @media (max-width: 850px) {
       main {
         grid-template-columns: 1fr;
@@ -281,6 +346,12 @@
 
         <label for="notes">Catatan</label>
         <textarea id="notes" placeholder="Catatan soal karakter, kejadian sesi, kondisi khusus, dll."></textarea>
+
+        <div id="spellSetup" class="spell-setup hidden">
+          <h3>Mantra Awal</h3>
+          <p class="muted">Untuk Dukun/Cenayang: pilih maksimal 5 mantra kelas rendah.</p>
+          <div id="lowSpellOptions" class="checkbox-grid"></div>
+        </div>
 
         <button type="submit" style="margin-top:12px;">Tambahkan</button>
       </form>
@@ -434,6 +505,97 @@
       }
     };
 
+
+    const MANTRAS = {
+      "Cenayang": {
+        low: [
+          "Ilusi",
+          "Jarimati",
+          "Ledakan Guntur",
+          "Perisai",
+          "Deteksilemah",
+          "Tangan Magis",
+          "Semburacun",
+          "Lacak Sihir",
+          "Pedang Magis",
+          "Jagjag Waringkas"
+        ],
+        mid: [
+          "Kutukan",
+          "Aura Gelap",
+          "Awan Serbu",
+          "Tangkis Mantra",
+          "Siksa Neraka",
+          "Invisibilitas",
+          "Tameng Serang",
+          "Pecah"
+        ],
+        high: [
+          "Proyeksi Astral",
+          "Dominasi",
+          "Jemari Maut",
+          "Gelap Mata",
+          "Lingkar Mati",
+          "Mumifikasi",
+          "Kekang",
+          "Mimpi"
+        ]
+      },
+    
+      "Dukun": {
+        low: [
+          "Gotri Api",
+          "Kristakroma",
+          "Tangan Magis",
+          "Kilat Beku",
+          "Lacak Sihir",
+          "Semburasam",
+          "Spasme",
+          "Sinaran",
+          "Pedang Magis",
+          "Jagjag Waringkas"
+        ],
+        mid: [
+          "Kunci Arkana",
+          "Aura Magis",
+          "Nirmata",
+          "Gotri Petir",
+          "Senjata Magis",
+          "Tameng Nujum",
+          "Kantuk",
+          "Zirah Magis"
+        ],
+        high: [
+          "Mata Arkana",
+          "Henti Waktu",
+          "Eksil",
+          "Simulakrum",
+          "Lanskap Ilusi",
+          "Teleportasi",
+          "Kloning",
+          "Pecah Akal"
+        ]
+      }
+    };
+
+    const SPELL_LIMITS = {
+      low: 5,
+      mid: 3,
+      high: 2
+    };
+
+    const SPELL_BASE_COSTS = {
+      low: 1,
+      mid: 2,
+      high: 3
+    };
+
+    const SPELL_LABELS = {
+      low: "Kelas Rendah",
+      mid: "Kelas Menengah",
+      high: "Kelas Tinggi"
+    };
+
     const STATUSES = [
       "Normal",
       "Terluka",
@@ -448,26 +610,7 @@
     ];
 
     let party = JSON.parse(localStorage.getItem("tn_party") || "[]");
-
-    party = party.map(character => {
-      if (!character.inventory) {
-        const typeRules = TYPES[character.type];
-
-        character.inventory = makeInventory({
-          weapon: character.weapon,
-          specialItem: character.specialItem
-        }, typeRules);
-      }
-
-      character.inventory = character.inventory.map(item => {
-        if (typeof item === "string") return parseInventoryItem(item);
-        if (!item.id) item.id = crypto.randomUUID();
-        return item;
-      });
-
-      return character;
-    });
-
+    party = party.map(migrateCharacter);
     save();
 
     const typeSelect = document.getElementById("type");
@@ -498,6 +641,58 @@
           select.appendChild(opt);
         });
       });
+
+      toggleSpellSetup();
+    }
+
+    function toggleSpellSetup() {
+      const type = typeSelect.value;
+      const typeRules = TYPES[type];
+      const spellSetup = document.getElementById("spellSetup");
+      const lowSpellOptions = document.getElementById("lowSpellOptions");
+
+      lowSpellOptions.innerHTML = "";
+
+      if (!typeRules || !typeRules.canCastSpells) {
+        spellSetup.classList.add("hidden");
+        return;
+      }
+
+      spellSetup.classList.remove("hidden");
+
+      MANTRAS[type].low.forEach(spell => {
+        const label = document.createElement("label");
+        label.className = "checkbox-option";
+        label.innerHTML = `
+          <input type="checkbox" name="lowSpell" value="${escapeHTML(spell)}">
+          <span>${escapeHTML(spell)}</span>
+        `;
+        lowSpellOptions.appendChild(label);
+      });
+    }
+
+    function getSelectedStartingSpells() {
+      return [...document.querySelectorAll('input[name="lowSpell"]:checked')].map(input => input.value);
+    }
+
+    function makeSpell(name, level) {
+      return {
+        id: crypto.randomUUID(),
+        name,
+        level
+      };
+    }
+
+    function makeStartingSpells(type, lowSpellNames) {
+      const typeRules = TYPES[type];
+
+      if (!typeRules.canCastSpells) return null;
+
+      return {
+        low: lowSpellNames.map(name => makeSpell(name, "low")),
+        mid: [],
+        high: []
+      };
     }
 
     function buildCharacter(formData) {
@@ -525,9 +720,12 @@
         chosenSkills,
         mp: typeRules.canCastSpells ? 10 : null,
         maxMP: typeRules.canCastSpells ? 10 : null,
-        lowSpellsUsed: 0,
-        midSpellsUsed: 0,
-        highSpellsUsed: 0,
+        combatCount: 0,
+        spells: makeStartingSpells(formData.type, formData.lowSpells || []),
+        spellUpgrades: typeRules.canCastSpells ? {
+          low: false,
+          mid: false
+        } : null,
         log: "Karakter ditambahkan."
       };
     }
@@ -584,6 +782,268 @@
 
     function getInventory(character) {
       return character.inventory || [];
+    }
+
+    function migrateCharacter(character) {
+      const typeRules = TYPES[character.type];
+
+      if (!character.inventory) {
+        character.inventory = makeInventory({
+          weapon: character.weapon,
+          specialItem: character.specialItem
+        }, typeRules);
+      }
+
+      character.inventory = character.inventory.map(item => {
+        if (typeof item === "string") return parseInventoryItem(item);
+        if (!item.id) item.id = crypto.randomUUID();
+        return item;
+      });
+
+      if (typeRules.canCastSpells) {
+        if (typeof character.combatCount !== "number") character.combatCount = 0;
+
+        if (!character.spells) {
+          character.spells = {
+            low: [],
+            mid: [],
+            high: []
+          };
+        }
+
+        ["low", "mid", "high"].forEach(level => {
+          if (!character.spells[level]) character.spells[level] = [];
+
+          character.spells[level] = character.spells[level].map(spell => {
+            if (typeof spell === "string") return makeSpell(spell, level);
+            if (!spell.id) spell.id = crypto.randomUUID();
+            if (!spell.level) spell.level = level;
+            return spell;
+          });
+        });
+
+        if (!character.spellUpgrades) {
+          character.spellUpgrades = {
+            low: false,
+            mid: false
+          };
+        }
+      }
+
+      return character;
+    }
+
+    function getSpellCost(character, level) {
+      let cost = SPELL_BASE_COSTS[level];
+
+      if (level === "low" && character.spellUpgrades?.low) cost *= 2;
+      if (level === "mid" && character.spellUpgrades?.mid) cost *= 2;
+
+      return cost;
+    }
+
+    function getSpellDamageLabel(character, level) {
+      if (level === "low") return character.spellUpgrades?.low ? "2x damage" : "1x damage";
+      if (level === "mid") return character.spellUpgrades?.mid ? "4x damage" : "2x damage";
+      return "3x damage";
+    }
+
+    function getAvailableSpells(character, level) {
+      const equippedNames = new Set((character.spells?.[level] || []).map(spell => spell.name));
+      return (MANTRAS[character.type]?.[level] || []).filter(spell => !equippedNames.has(spell));
+    }
+
+    function canAddSpellLevel(character, level) {
+      if (level === "low") return true;
+      if (level === "mid") return character.combatCount >= 2;
+      if (level === "high") return character.combatCount >= 5;
+      return false;
+    }
+
+    function updateCombatCount(id, amount) {
+      const character = party.find(c => c.id === id);
+      character.combatCount = Math.max(0, (character.combatCount || 0) + amount);
+      character.log = `Jumlah combat sekarang: ${character.combatCount}.`;
+      save();
+      render();
+    }
+
+    function toggleSpellUpgrade(id, level) {
+      const character = party.find(c => c.id === id);
+
+      if (level === "low" && character.combatCount < 2) {
+        return alert("Upgrade mantra kelas rendah baru terbuka setelah 2x combat.");
+      }
+
+      if (level === "mid" && character.combatCount < 5) {
+        return alert("Upgrade mantra kelas menengah baru terbuka setelah 5x combat.");
+      }
+
+      character.spellUpgrades[level] = !character.spellUpgrades[level];
+      character.log = character.spellUpgrades[level]
+        ? `Semua mantra ${SPELL_LABELS[level].toLowerCase()} di-upgrade.`
+        : `Upgrade mantra ${SPELL_LABELS[level].toLowerCase()} dibatalkan.`;
+
+      save();
+      render();
+    }
+
+    function addEquippedSpell(id, level) {
+      const character = party.find(c => c.id === id);
+      const select = document.getElementById(`add-spell-${id}-${level}`);
+      const spellName = select?.value;
+
+      if (!spellName) return;
+
+      if (!canAddSpellLevel(character, level)) {
+        return alert(`${SPELL_LABELS[level]} belum terbuka.`);
+      }
+
+      if (character.spells[level].length >= SPELL_LIMITS[level]) {
+        return alert(`Slot ${SPELL_LABELS[level].toLowerCase()} sudah penuh.`);
+      }
+
+      if (character.spells[level].some(spell => spell.name === spellName)) {
+        return alert("Mantra ini sudah dipasang.");
+      }
+
+      character.spells[level].push(makeSpell(spellName, level));
+      character.log = `${spellName} dipasang sebagai mantra ${SPELL_LABELS[level].toLowerCase()}.`;
+
+      save();
+      render();
+    }
+
+    function removeEquippedSpell(id, spellId) {
+      const character = party.find(c => c.id === id);
+      let removed = null;
+
+      ["low", "mid", "high"].forEach(level => {
+        const found = character.spells[level].find(spell => spell.id === spellId);
+        if (found) removed = found;
+        character.spells[level] = character.spells[level].filter(spell => spell.id !== spellId);
+      });
+
+      character.log = `${removed ? removed.name : "Mantra"} dilepas.`;
+      save();
+      render();
+    }
+
+    function castSpell(id, spellId) {
+      const character = party.find(c => c.id === id);
+      let selectedSpell = null;
+
+      ["low", "mid", "high"].forEach(level => {
+        const found = character.spells[level].find(spell => spell.id === spellId);
+        if (found) selectedSpell = found;
+      });
+
+      if (!selectedSpell) return;
+
+      const cost = getSpellCost(character, selectedSpell.level);
+
+      if (character.mp < cost) {
+        return alert("Kemampuan Kebatinannya tidak cukup.");
+      }
+
+      character.mp -= cost;
+      character.log = `Rapal ${selectedSpell.name}: -${cost} Kebatinan (${getSpellDamageLabel(character, selectedSpell.level)}).`;
+
+      save();
+      render();
+    }
+
+    function renderSpellLevel(character, level) {
+      const equipped = character.spells?.[level] || [];
+      const available = getAvailableSpells(character, level);
+      const unlocked = canAddSpellLevel(character, level);
+      const limit = SPELL_LIMITS[level];
+
+      return `
+      <h5>
+        ${SPELL_LABELS[level]}
+        ${
+          (level === "low" && character.spellUpgrades?.low) ||
+          (level === "mid" && character.spellUpgrades?.mid)
+            ? "<span class='tag'>Diperkuat</span>"
+            : ""
+        }
+        <span class="muted">(${equipped.length}/${limit})</span>
+      </h5>
+
+        ${!unlocked ? `<p class="muted">${SPELL_LABELS[level]} belum terbuka.</p>` : ""}
+
+        <ul class="spell-list">
+          ${equipped.map(spell => `
+            <li class="spell-item">
+              <span>
+                ${escapeHTML(spell.name)}
+                <span class="spell-meta">${getSpellDamageLabel(character, level)} | kuras ${getSpellCost(character, level)} Kebatinan</span>
+              </span>
+              <span class="spell-actions">
+                <button onclick="castSpell('${character.id}', '${spell.id}')">Rapal</button>
+                <button class="danger" onclick="removeEquippedSpell('${character.id}', '${spell.id}')">x</button>
+              </span>
+            </li>
+          `).join("")}
+        </ul>
+
+        ${unlocked && equipped.length < limit && available.length > 0 ? `
+          <div class="row">
+            <select id="add-spell-${character.id}-${level}">
+              ${available.map(spell => `<option value="${escapeHTML(spell)}">${escapeHTML(spell)}</option>`).join("")}
+            </select>
+            <button class="small" onclick="addEquippedSpell('${character.id}', '${level}')">Tambah</button>
+          </div>
+        ` : ""}
+      `;
+    }
+
+    function renderSpellPanel(character) {
+      return `
+        <div class="spell-panel">
+          <h4>Mantra</h4>
+
+          <div class="statline">
+            <div class="stat">
+              <span>Kebatinan</span>
+              <strong>${character.mp}/${character.maxMP}</strong>
+            </div>
+            <div class="stat">
+              <span>Combat</span>
+              <strong>${character.combatCount || 0}</strong>
+            </div>
+
+          <div class="row">
+            <button class="small danger" onclick="updateMP('${character.id}', -1)">-1 Kebatinan</button>
+            <button class="small" onclick="updateMP('${character.id}', 1)">+1 Kebatinan</button>
+          </div>
+
+          <div class="row" style="margin-top:8px;">
+            <button class="small secondary" onclick="updateCombatCount('${character.id}', -1)">-1 Combat</button>
+            <button class="small secondary" onclick="updateCombatCount('${character.id}', 1)">+1 Combat</button>
+          </div>
+
+          <div class="row" style="margin-top:8px;">
+            <button class="small ${character.combatCount >= 2 ? "" : "secondary"}" onclick="toggleSpellUpgrade('${character.id}', 'low')">
+              ${character.spellUpgrades?.low ? "Lemahkan Kelas Rendah" : "Perkuat Kelas Rendah"}
+            </button>
+            <button class="small ${character.combatCount >= 5 ? "" : "secondary"}" onclick="toggleSpellUpgrade('${character.id}', 'mid')">
+              ${character.spellUpgrades?.mid ? "Lemahkan Kelas Menengah" : "Perkuat Kelas Menengah"}
+            </button>
+          </div>
+
+          <p class="muted">
+            2x combat: tambah mantra kelas menengah atau perkuat mantra kelas rendah.
+          </p><p class="muted">
+            5x combat: tambah mantra kelas tinggi atau perkuat mantra kelas menengah.
+          </p>
+
+          ${renderSpellLevel(character, "low")}
+          ${renderSpellLevel(character, "mid")}
+          ${renderSpellLevel(character, "high")}
+        </div>
+      `;
     }
 
     function updateHP(id, amount) {
@@ -670,37 +1130,6 @@
       const character = party.find(c => c.id === id);
       character.inventory.push(parseInventoryItem(value));
       character.log = `${value} ditambahkan ke inventory.`;
-
-      save();
-      render();
-    }
-
-    function useSpell(id, level) {
-      const character = party.find(c => c.id === id);
-
-      if (level === "low") {
-        if (character.mp < 1) return alert("Kemampuan Kebatinannya habis.");
-        if (character.lowSpellsUsed >= 5) return alert("Batas mantra kelas rendah habis.");
-        character.mp -= 1;
-        character.lowSpellsUsed += 1;
-        character.log = "Rapal mantra kelas rendah: -1 Kebatinan.";
-      }
-
-      if (level === "mid") {
-        if (character.mp < 2) return alert("Kemampuan Kebatinannya habis.");
-        if (character.midSpellsUsed >= 3) return alert("Batas mantra kelas menengah habis.");
-        character.mp -= 2;
-        character.midSpellsUsed += 1;
-        character.log = "Rapal mantra kelas menengah: -2 Kebatinan.";
-      }
-
-      if (level === "high") {
-        if (character.mp < 3) return alert("Kemampuan Kebatinannya habis.");
-        if (character.highSpellsUsed >= 2) return alert("Batas mantra kelas tinggi habis.");
-        character.mp -= 3;
-        character.highSpellsUsed += 1;
-        character.log = "Rapal mantra kelas tinggi: -3 Kebatinan.";
-      }
 
       save();
       render();
@@ -812,33 +1241,7 @@
             ${STATUSES.map(s => `<option value="${s}" ${s === character.status ? "selected" : ""}>${s}</option>`).join("")}
           </select>
 
-          ${typeRules.canCastSpells ? `
-            <div class="statline">
-              <div class="stat">
-                <span>Kebatinan</span>
-                <strong>${character.mp}/${character.maxMP}</strong>
-              </div>
-              <div class="stat">
-                <span>Low</span>
-                <strong>${character.lowSpellsUsed}/5</strong>
-              </div>
-              <div class="stat">
-                <span>Mid/High</span>
-                <strong>${character.midSpellsUsed}/3 ${character.highSpellsUsed}/2</strong>
-              </div>
-            </div>
-
-            <div class="row">
-              <button class="small" onclick="useSpell('${character.id}', 'low')">Rapal K. Rendah</button>
-              <button class="small" onclick="useSpell('${character.id}', 'mid')">Rapal K. Tengah</button>
-              <button class="small" onclick="useSpell('${character.id}', 'high')">Rapal K. Tinggi</button>
-            </div>
-
-            <div class="row" style="margin-top:8px;">
-              <button class="small secondary" onclick="updateMP('${character.id}', 1)">+1 Kebatinan</button>
-              <button class="small secondary" onclick="updateMP('${character.id}', -1)">-1 Kebatinan</button>
-            </div>
-          ` : ""}
+          ${typeRules.canCastSpells ? renderSpellPanel(character) : ""}
 
           <h4>Kemampuan</h4>
           <div class="skill-grid">
@@ -914,7 +1317,8 @@
         skill3: document.getElementById("skill3").value,
         skill2: document.getElementById("skill2").value,
         skill1: document.getElementById("skill1").value,
-        notes: document.getElementById("notes").value.trim()
+        notes: document.getElementById("notes").value.trim(),
+        lowSpells: getSelectedStartingSpells()
       };
 
       const selectedSkills = [formData.skill4, formData.skill3, formData.skill2, formData.skill1];
@@ -925,10 +1329,16 @@
         return;
       }
 
+      if (TYPES[formData.type].canCastSpells && formData.lowSpells.length > SPELL_LIMITS.low) {
+        alert("Pilih maksimal 5 mantra kelas rendah.");
+        return;
+      }
+
       party.push(buildCharacter(formData));
       save();
       render();
       event.target.reset();
+      toggleSpellSetup();
     });
 
     document.getElementById("exportBtn").addEventListener("click", () => {
@@ -951,24 +1361,7 @@
 
       reader.onload = () => {
         try {
-          party = JSON.parse(reader.result).map(character => {
-            if (!character.inventory) {
-              const typeRules = TYPES[character.type];
-
-              character.inventory = makeInventory({
-                weapon: character.weapon,
-                specialItem: character.specialItem
-              }, typeRules);
-            }
-
-            character.inventory = character.inventory.map(item => {
-              if (typeof item === "string") return parseInventoryItem(item);
-              if (!item.id) item.id = crypto.randomUUID();
-              return item;
-            });
-
-            return character;
-          });
+          party = JSON.parse(reader.result).map(migrateCharacter);
           save();
           render();
         } catch {
@@ -984,6 +1377,19 @@
       party = [];
       save();
       render();
+    });
+
+    typeSelect.addEventListener("change", toggleSpellSetup);
+
+    document.getElementById("lowSpellOptions").addEventListener("change", event => {
+      if (event.target.name !== "lowSpell") return;
+
+      const selected = getSelectedStartingSpells();
+
+      if (selected.length > SPELL_LIMITS.low) {
+        event.target.checked = false;
+        alert("Pilih maksimal 5 mantra kelas rendah.");
+      }
     });
 
     fillSelects();
