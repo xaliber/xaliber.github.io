@@ -1041,8 +1041,8 @@
 
       character.spellUpgrades[level] = !character.spellUpgrades[level];
       character.log = character.spellUpgrades[level]
-        ? `Semua mantra ${SPELL_LABELS[level].toLowerCase()} di-upgrade.`
-        : `Upgrade mantra ${SPELL_LABELS[level].toLowerCase()} dibatalkan.`;
+        ? `Semua mantra ${SPELL_LABELS[level].toLowerCase()} diperkuat.`
+        : `Semua mantra ${SPELL_LABELS[level].toLowerCase()} dilemahkan.`;
 
       save();
       render();
