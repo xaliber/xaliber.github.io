@@ -3,6 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- 
+
+  CHARACTER SHEET CREATED FOR TEMAN NULIS ONLY
+  CONTACT ME FOR MODIFICATION
+	http://pradipa.rasidi.web.id
+	http://linkedin.com/in/pradipa-p-rasidi-71a76b39/
+																									 
+  -->
+  
   <title>Teman Nulis Character Tracker</title>
   <style>
     :root {
@@ -105,6 +115,11 @@
       gap: 8px;
       align-items: center;
       flex-wrap: wrap;
+    }
+    .spell-list + .row,
+    .inventory-list + .row {
+      display: grid;
+      grid-template-columns: 2.5fr 1fr;
     }
 
     .row > * {
@@ -242,6 +257,19 @@
       background: #fbf8f3;
     }
 
+    .spell-panel h4 {
+      margin-top: 0;
+    }
+    .spell-panel h5 {
+      margin-bottom: 0;
+    }
+    .spell-panel .statline {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .spell-panel .tag {
+      padding: 0 7px;
+    }
+
     .checkbox-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -254,6 +282,7 @@
       gap: 8px;
       align-items: flex-start;
       padding: 6px 8px;
+      margin: 0;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: white;
@@ -309,7 +338,11 @@
   <header>
     <h1>Teman Nulis Character Tracker</h1>
     <p class="muted">Masukkan karakter bikinan pemain di sini untuk memudahkan tracking. Perlengkapan dan skill akan terisi sesuai profesi. Gunakan lembaran ini untuk tracking HP (Nyawa), MP (Kebatinan), perlengkapan, dll.</p>
-    <p class="muted">Pranala terkait: <a href="https://drive.google.com/file/d/1zyZljjyhoj_Qkz6K_CBJ9llr7o6aZbLt/view?usp=sharing">Buku Panduan</a> | <a href="https://docs.google.com/document/d/1WgfO7BRSGON-mTZmkWouqTdYWwX9EJ78Mlm03beZY_s/edit?usp=drivesdk">Naskah Roleplay</a> | <a href="https://drive.google.com/file/d/1zYrkhc-GINeNRaK0zZJVxDcUsTRK-G7O/view?usp=sharing">Lembar Karakter</a></p>
+    <p class="muted"><strong>Pranala terkait:</strong><br>
+	<a href="https://drive.google.com/file/d/1zyZljjyhoj_Qkz6K_CBJ9llr7o6aZbLt/view?usp=sharing">Buku Panduan</a> | 
+	<!-- <a href="https://docs.google.com/document/d/1WgfO7BRSGON-mTZmkWouqTdYWwX9EJ78Mlm03beZY_s/edit?usp=drivesdk">Naskah Roleplay</a> | -->
+	<a href="https://drive.google.com/file/d/1zYrkhc-GINeNRaK0zZJVxDcUsTRK-G7O/view?usp=sharing">Lembar Karakter</a>
+    </p>
   </header>
 
   <main>
@@ -321,8 +354,9 @@
         <input id="name" required placeholder="Mulyono, Darsono, Mak Klenik, dll." />
 
         <label for="type">Profesi</label>
-        <select id="type" required></select>
-
+        <p class="muted"><strong>Untuk GM:</strong> Kosongkan profesi dan ketik nama jenis musuh untuk memasukkan musuh.</p>
+	<select id="type"></select>
+        
         <label for="weapon">Senjata nonpistol</label>
         <input id="weapon" placeholder="belati, pedang, kapak, dll." />
 
@@ -506,6 +540,58 @@
     };
 
 
+    const ENEMIES = {
+      genderuwo: {
+        aliases: ["genderuwo"],
+        displayNames: {
+          genderuwo: "Genderuwo"
+        },
+        hp: 9,
+        immunity: 3
+      },
+
+      tuyul: {
+        aliases: ["tuyul"],
+        displayNames: {
+          tuyul: "Tuyul"
+        },
+        hp: 10,
+        immunity: 3,
+        maxMP: 99,
+        spellSource: "Cenayang",
+        spells: {
+          low: ["Pedang Magis", "Ledakan Guntur"],
+          mid: [],
+          high: []
+        }
+      },
+
+      pertapa: {
+        aliases: ["pertapa", "demit", "manticore"],
+        displayNames: {
+          pertapa: "Pertapa",
+          demit: "Demit",
+          manticore: "manticore"
+        },
+        hp: 36,
+        immunity: 3,
+        attacks: [
+          {
+            name: "Multi-attack",
+            detail: "Kemampuan pasif. Bisa menyerang 2x dalam 1 giliran."
+          },
+          {
+            name: "Cakar",
+            detail: "Damage -1."
+          },
+          {
+            name: "Sengatan kalajengking",
+            detail: "Damage -2."
+          }
+        ]
+      }
+    };
+
     const MANTRAS = {
       "Cenayang": {
         low: [
@@ -624,7 +710,69 @@
       return Math.floor(Math.random() * 6) + 1;
     }
 
+    function normalizeName(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function getEnemyDefinition(name) {
+      const normalized = normalizeName(name);
+
+      return Object.values(ENEMIES).find(enemy =>
+        enemy.aliases.includes(normalized)
+      ) || null;
+    }
+
+    function buildEnemyCharacter(name) {
+      const normalized = normalizeName(name);
+      const enemy = getEnemyDefinition(name);
+
+      if (!enemy) return null;
+
+      return {
+        id: crypto.randomUUID(),
+        name: enemy.displayNames?.[normalized] || name.trim(),
+        type: "Musuh",
+        isEnemy: true,
+        inventory: [],
+        notes: enemy.notes || "",
+        attacks: enemy.attacks || [],
+        maxHP: enemy.hp,
+        hp: enemy.hp,
+        immunity: enemy.immunity,
+        status: "Normal",
+        chosenSkills: {},
+        mp: typeof enemy.maxMP === "number" ? enemy.maxMP : null,
+        maxMP: typeof enemy.maxMP === "number" ? enemy.maxMP : null,
+        combatCount: 0,
+        spellSource: enemy.spellSource || null,
+        spells: enemy.spells ? {
+          low: (enemy.spells.low || []).map(spell => makeSpell(spell, "low")),
+          mid: (enemy.spells.mid || []).map(spell => makeSpell(spell, "mid")),
+          high: (enemy.spells.high || []).map(spell => makeSpell(spell, "high"))
+        } : null,
+        spellUpgrades: null,
+        log: "Musuh ditambahkan."
+      };
+    }
+
+    function hasSpells(character) {
+      if (!character.spells) return false;
+
+      return ["low", "mid", "high"].some(level =>
+        (character.spells[level] || []).length > 0
+      ) || TYPES[character.type]?.canCastSpells;
+    }
+
+    function getSpellSource(character) {
+      return character.spellSource || character.type;
+    }
+
     function fillSelects() {
+      const blankOpt = document.createElement("option");
+      blankOpt.value = "";
+      blankOpt.textContent = "-";
+      typeSelect.appendChild(blankOpt);
+
       Object.keys(TYPES).forEach(type => {
         const opt = document.createElement("option");
         opt.value = type;
@@ -731,12 +879,12 @@
     }
 
     function getFinalSkills(character) {
-      const typeRules = TYPES[character.type];
+      const typeRules = TYPES[character.type] || { skillBonuses: {} };
       const result = {};
 
       SKILLS.forEach(skill => {
-        const chosen = character.chosenSkills[skill] || 0;
-        const classBonus = typeRules.skillBonuses[skill] || 0;
+        const chosen = character.chosenSkills?.[skill] || 0;
+        const classBonus = typeRules.skillBonuses?.[skill] || 0;
         const total = chosen + classBonus;
 
         if (total > 0) {
@@ -785,14 +933,22 @@
     }
 
     function migrateCharacter(character) {
-      const typeRules = TYPES[character.type];
+      const typeRules = TYPES[character.type] || { inventory: [], skillBonuses: {} };
 
       if (!character.inventory) {
-        character.inventory = makeInventory({
-          weapon: character.weapon,
-          specialItem: character.specialItem
-        }, typeRules);
+        if (TYPES[character.type]) {
+          character.inventory = makeInventory({
+            weapon: character.weapon,
+            specialItem: character.specialItem
+          }, typeRules);
+        } else {
+          character.inventory = [];
+        }
       }
+
+      if (!character.chosenSkills) character.chosenSkills = {};
+      if (typeof character.isEnemy !== "boolean") character.isEnemy = character.type === "Musuh";
+      if (!character.attacks) character.attacks = [];
 
       character.inventory = character.inventory.map(item => {
         if (typeof item === "string") return parseInventoryItem(item);
@@ -800,7 +956,7 @@
         return item;
       });
 
-      if (typeRules.canCastSpells) {
+      if (typeRules.canCastSpells || character.spells) {
         if (typeof character.combatCount !== "number") character.combatCount = 0;
 
         if (!character.spells) {
@@ -822,7 +978,7 @@
           });
         });
 
-        if (!character.spellUpgrades) {
+        if (typeRules.canCastSpells && !character.spellUpgrades) {
           character.spellUpgrades = {
             low: false,
             mid: false
@@ -849,11 +1005,15 @@
     }
 
     function getAvailableSpells(character, level) {
+      if (character.isEnemy) return [];
+
+      const spellSource = getSpellSource(character);
       const equippedNames = new Set((character.spells?.[level] || []).map(spell => spell.name));
-      return (MANTRAS[character.type]?.[level] || []).filter(spell => !equippedNames.has(spell));
+      return (MANTRAS[spellSource]?.[level] || []).filter(spell => !equippedNames.has(spell));
     }
 
     function canAddSpellLevel(character, level) {
+      if (character.isEnemy) return false;
       if (level === "low") return true;
       if (level === "mid") return character.combatCount >= 2;
       if (level === "high") return character.combatCount >= 5;
@@ -872,11 +1032,11 @@
       const character = party.find(c => c.id === id);
 
       if (level === "low" && character.combatCount < 2) {
-        return alert("Upgrade mantra kelas rendah baru terbuka setelah 2x combat.");
+        return alert("Hanya bisa memperkuat mantra kelas rendah setelah 2x combat.");
       }
 
       if (level === "mid" && character.combatCount < 5) {
-        return alert("Upgrade mantra kelas menengah baru terbuka setelah 5x combat.");
+        return alert("Hanya bisa memperkuat mantra kelas menengah setelah 5x combat.");
       }
 
       character.spellUpgrades[level] = !character.spellUpgrades[level];
@@ -904,11 +1064,11 @@
       }
 
       if (character.spells[level].some(spell => spell.name === spellName)) {
-        return alert("Mantra ini sudah dipasang.");
+        return alert("Mantra ini sudah dipelajari.");
       }
 
       character.spells[level].push(makeSpell(spellName, level));
-      character.log = `${spellName} dipasang sebagai mantra ${SPELL_LABELS[level].toLowerCase()}.`;
+      character.log = `Mempelajari mantra ${spellName} (${SPELL_LABELS[level].toLowerCase()}).`;
 
       save();
       render();
@@ -947,7 +1107,7 @@
       }
 
       character.mp -= cost;
-      character.log = `Rapal ${selectedSpell.name}: -${cost} Kebatinan (${getSpellDamageLabel(character, selectedSpell.level)}).`;
+      character.log = `Merapal ${selectedSpell.name}: -${cost} Kebatinan (${getSpellDamageLabel(character, selectedSpell.level)}).`;
 
       save();
       render();
@@ -956,15 +1116,17 @@
     function renderSpellLevel(character, level) {
       const equipped = character.spells?.[level] || [];
       const available = getAvailableSpells(character, level);
-      const unlocked = canAddSpellLevel(character, level);
+      const unlocked = character.isEnemy ? true : canAddSpellLevel(character, level);
       const limit = SPELL_LIMITS[level];
 
       return `
       <h5>
         ${SPELL_LABELS[level]}
         ${
-          (level === "low" && character.spellUpgrades?.low) ||
-          (level === "mid" && character.spellUpgrades?.mid)
+          !character.isEnemy && (
+            (level === "low" && character.spellUpgrades?.low) ||
+            (level === "mid" && character.spellUpgrades?.mid)
+          )
             ? "<span class='tag'>Diperkuat</span>"
             : ""
         }
@@ -982,13 +1144,13 @@
               </span>
               <span class="spell-actions">
                 <button onclick="castSpell('${character.id}', '${spell.id}')">Rapal</button>
-                <button class="danger" onclick="removeEquippedSpell('${character.id}', '${spell.id}')">x</button>
+                ${character.isEnemy ? "" : `<button class="danger" onclick="removeEquippedSpell('${character.id}', '${spell.id}')">x</button>`}
               </span>
             </li>
           `).join("")}
         </ul>
 
-        ${unlocked && equipped.length < limit && available.length > 0 ? `
+        ${!character.isEnemy && unlocked && equipped.length < limit && available.length > 0 ? `
           <div class="row">
             <select id="add-spell-${character.id}-${level}">
               ${available.map(spell => `<option value="${escapeHTML(spell)}">${escapeHTML(spell)}</option>`).join("")}
@@ -1009,40 +1171,63 @@
               <span>Kebatinan</span>
               <strong>${character.mp}/${character.maxMP}</strong>
             </div>
-            <div class="stat">
-              <span>Combat</span>
-              <strong>${character.combatCount || 0}</strong>
-            </div>
+            ${character.isEnemy ? "" : `
+              <div class="stat">
+                <span>Combat</span>
+                <strong>${character.combatCount || 0}</strong>
+              </div>
+            `}
+          </div>
 
           <div class="row">
             <button class="small danger" onclick="updateMP('${character.id}', -1)">-1 Kebatinan</button>
             <button class="small" onclick="updateMP('${character.id}', 1)">+1 Kebatinan</button>
           </div>
 
-          <div class="row" style="margin-top:8px;">
-            <button class="small secondary" onclick="updateCombatCount('${character.id}', -1)">-1 Combat</button>
-            <button class="small secondary" onclick="updateCombatCount('${character.id}', 1)">+1 Combat</button>
-          </div>
+          ${character.isEnemy ? "" : `
+            <div class="row" style="margin-top:8px;">
+              <button class="small secondary" onclick="updateCombatCount('${character.id}', -1)">-1 Combat</button>
+              <button class="small secondary" onclick="updateCombatCount('${character.id}', 1)">+1 Combat</button>
+            </div>
 
-          <div class="row" style="margin-top:8px;">
-            <button class="small ${character.combatCount >= 2 ? "" : "secondary"}" onclick="toggleSpellUpgrade('${character.id}', 'low')">
-              ${character.spellUpgrades?.low ? "Lemahkan Kelas Rendah" : "Perkuat Kelas Rendah"}
-            </button>
-            <button class="small ${character.combatCount >= 5 ? "" : "secondary"}" onclick="toggleSpellUpgrade('${character.id}', 'mid')">
-              ${character.spellUpgrades?.mid ? "Lemahkan Kelas Menengah" : "Perkuat Kelas Menengah"}
-            </button>
-          </div>
+            <div class="row" style="margin-top:8px;">
+              <button class="small ${character.combatCount >= 2 ? "" : "secondary"}" onclick="toggleSpellUpgrade('${character.id}', 'low')">
+                ${character.spellUpgrades?.low ? "Lemahkan Kelas Rendah" : "Perkuat Kelas Rendah"}
+              </button>
+              <button class="small ${character.combatCount >= 5 ? "" : "secondary"}" onclick="toggleSpellUpgrade('${character.id}', 'mid')">
+                ${character.spellUpgrades?.mid ? "Lemahkan Kelas Menengah" : "Perkuat Kelas Menengah"}
+              </button>
+            </div>
 
-          <p class="muted">
-            2x combat: tambah mantra kelas menengah atau perkuat mantra kelas rendah.
-          </p><p class="muted">
-            5x combat: tambah mantra kelas tinggi atau perkuat mantra kelas menengah.
-          </p>
+            <p class="muted">
+              2x combat: tambah mantra kelas menengah atau perkuat mantra kelas rendah.
+            </p><p class="muted">
+              5x combat: tambah mantra kelas tinggi atau perkuat mantra kelas menengah.
+            </p>
+          `}
 
           ${renderSpellLevel(character, "low")}
           ${renderSpellLevel(character, "mid")}
           ${renderSpellLevel(character, "high")}
         </div>
+      `;
+    }
+
+    function renderEnemyAttacks(character) {
+      if (!character.attacks || character.attacks.length === 0) return "";
+
+      return `
+        <h4>Serangan</h4>
+        <ul class="inventory-list">
+          ${character.attacks.map(attack => `
+            <li class="inventory-item">
+              <span class="inventory-item-name">
+                <strong>${escapeHTML(attack.name)}</strong>
+                <span class="spell-meta">${escapeHTML(attack.detail || "")}</span>
+              </span>
+            </li>
+          `).join("")}
+        </ul>
       `;
     }
 
@@ -1196,7 +1381,7 @@
       }
 
       party.forEach(character => {
-        const typeRules = TYPES[character.type];
+        const typeRules = TYPES[character.type] || {};
         const finalSkills = getFinalSkills(character);
         const inventory = getInventory(character);
 
@@ -1241,15 +1426,19 @@
             ${STATUSES.map(s => `<option value="${s}" ${s === character.status ? "selected" : ""}>${s}</option>`).join("")}
           </select>
 
-          ${typeRules.canCastSpells ? renderSpellPanel(character) : ""}
+          ${hasSpells(character) ? renderSpellPanel(character) : ""}
 
-          <h4>Kemampuan</h4>
-          <div class="skill-grid">
-            ${Object.entries(finalSkills).map(([skill, data]) => `
-              <div>${skill} <span class="muted">(${ [ data.classBonus ? "+" + data.classBonus + " profesi" : "", data.chosen ? "+" + data.chosen + " pilihan" : "" ].filter(Boolean).join(", ") })</span></div>
-              <div>+${data.total}</div>
-            `).join("")}
-          </div>
+          ${renderEnemyAttacks(character)}
+
+          ${!character.isEnemy ? `
+	  <h4>Kemampuan</h4>
+	  <div class="skill-grid">
+	    ${Object.entries(finalSkills).map(([skill, data]) => `
+	      <div>${skill} <span class="muted">(${ [ data.classBonus ? "+" + data.classBonus + " profesi" : "", data.chosen ? "+" + data.chosen + " pilihan" : "" ].filter(Boolean).join(", ") })</span></div>
+	      <div>+${data.total}</div>
+	    `).join("")}
+	  </div>
+	` : ""}
 
 <!--
           <label>Roll Skill</label>
@@ -1282,8 +1471,8 @@
           </ul>
 
           <div class="row">
-            <input id="new-item-${character.id}" placeholder="Contoh: 3 obor / peta tua / kunci besi" />
-            <button class="small" onclick="addInventoryItem('${character.id}')">Tambah Barang</button>
+            <input id="new-item-${character.id}" placeholder="Contoh: 3 obor, 1 peta tua, dll." />
+            <button class="small" onclick="addInventoryItem('${character.id}')">Tambah</button>
           </div>
 
           <h4>Catatan</h4>
@@ -1320,6 +1509,22 @@
         notes: document.getElementById("notes").value.trim(),
         lowSpells: getSelectedStartingSpells()
       };
+
+      if (!formData.type) {
+        const enemy = buildEnemyCharacter(formData.name);
+
+        if (!enemy) {
+          alert("Pilih profesi, atau ketik nama jenis musuh.");
+          return;
+        }
+
+        party.push(enemy);
+        save();
+        render();
+        event.target.reset();
+        toggleSpellSetup();
+        return;
+      }
 
       const selectedSkills = [formData.skill4, formData.skill3, formData.skill2, formData.skill1];
       const uniqueSkills = new Set(selectedSkills);
